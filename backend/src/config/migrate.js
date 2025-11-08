@@ -6,7 +6,12 @@ async function migrate() {
   try {
     console.log('[MIGRATE] Starting migration...');
     // Create data directory if it doesn't exist
-    const dataDir = path.join(__dirname, '../../data');
+    const dbPath = process.env.DB_PATH || path.join(__dirname, '../../data/database.sqlite');
+    const dataDir = path.dirname(dbPath);
+    
+    console.log('[MIGRATE] DB Path:', dbPath);
+    console.log('[MIGRATE] Data Dir:', dataDir);
+    
     if (!fs.existsSync(dataDir)) {
       console.log('[MIGRATE] Creating data directory:', dataDir);
       fs.mkdirSync(dataDir, { recursive: true });

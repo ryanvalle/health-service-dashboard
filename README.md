@@ -88,22 +88,35 @@ health-service-dashboard/
 
 ### Quick Start with Docker (Recommended)
 
+**Note**: For the most reliable experience, especially during initial setup, use the [Local Development Setup](QUICKSTART.md) instead. The Docker setup is production-ready but may require additional configuration depending on your environment.
+
 1. **Clone the repository**
    ```bash
    git clone https://github.com/ryanvalle/health-service-dashboard.git
    cd health-service-dashboard
    ```
 
-2. **Start the application**
+2. **Build the frontend** (pre-build step)
    ```bash
-   docker-compose up -d
+   cd frontend
+   npm install
+   npm run build
+   cd ..
    ```
 
-3. **Access the application**
+3. **Build and start with Docker**
+   ```bash
+   docker compose build
+   docker compose up -d
+   ```
+
+4. **Access the application**
    - Dashboard: http://localhost:3000
    - API Documentation: http://localhost:3000/api-docs
 
 That's it! The application will be running with a persistent SQLite database.
+
+For troubleshooting or alternative setup methods, see the [Quick Start Guide](QUICKSTART.md).
 
 ### Local Development Setup
 
