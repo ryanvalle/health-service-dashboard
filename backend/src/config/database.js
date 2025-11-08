@@ -10,13 +10,25 @@ class Database {
 
   connect() {
     return new Promise((resolve, reject) => {
+      // Don't reconnect if already connected
+      if (this.db) {
+        console.log('Already connected to database');
+        return resolve();
+      }
+
       this.db = new sqlite3.Database(DB_PATH, (err) => {
         if (err) {
           console.error('Error connecting to database:', err);
           reject(err);
         } else {
           console.log('Connected to SQLite database');
-          resolve();
+          // Enable WAL mode for better concurrency
+          this.db.run('PRAGMA journal_mode = WAL', (walErr) => {
+            if (walErr) {
+              console.warn('Could not enable WAL mode:', walErr.message);
+            }
+            resolve();
+          });
         }
       });
     });

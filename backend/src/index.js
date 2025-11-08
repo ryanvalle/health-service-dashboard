@@ -93,13 +93,9 @@ process.on('SIGINT', async () => {
 // Start server
 async function start() {
   try {
-    // Run database migration
+    // Run database migration (this also connects to the database)
     console.log('Running database migration...');
     await migrate();
-
-    // Connect to database
-    console.log('Connecting to database...');
-    await db.connect();
 
     // Start scheduler service
     await schedulerService.start();

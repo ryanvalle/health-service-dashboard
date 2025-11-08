@@ -28,6 +28,7 @@ function EndpointForm() {
     if (isEdit) {
       fetchEndpoint();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const fetchEndpoint = async () => {
