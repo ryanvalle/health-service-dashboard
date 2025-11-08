@@ -33,10 +33,12 @@ The dashboard will open automatically at http://localhost:3000
 
 ## Docker Setup
 
+The Docker setup now includes a fully automated build process - no pre-build steps required!
+
 ### Build and Run
 
 ```bash
-# Build the image
+# Build the image (builds both frontend and backend inside Docker)
 docker compose build
 
 # Run the container
@@ -51,7 +53,7 @@ docker compose down
 
 The application will be available at http://localhost:3000
 
-**Note**: The Docker setup includes both frontend and backend in a single container. If you encounter issues, use the local development setup instead.
+**Note**: The first build may take a few minutes as it installs all dependencies and builds the frontend.
 
 ## Configuration
 

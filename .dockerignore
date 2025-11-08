@@ -11,8 +11,6 @@ data
 backend/data
 *.sqlite
 *.sqlite-journal
-frontend/src
-frontend/public
-frontend/node_modules
+frontend/build
 .vscode
 .idea

@@ -1,16 +1,49 @@
-# Production image for Health Check Dashboard
+# Multi-stage build for Health Check Dashboard
+
+# Stage 1: Build backend dependencies
+FROM node:18-alpine AS backend-builder
+
+WORKDIR /app/backend
+
+# Copy backend package files
+COPY backend/package*.json ./
+
+# Install production dependencies
+RUN npm ci --only=production
+
+# Stage 2: Build frontend
+FROM node:18-alpine AS frontend-builder
+
+WORKDIR /app/frontend
+
+# Copy frontend package files
+COPY frontend/package*.json ./
+
+# Install dependencies
+RUN npm ci
+
+# Copy frontend source
+COPY frontend/public ./public/
+COPY frontend/src ./src/
+
+# Build frontend
+RUN npm run build
+
+# Stage 3: Final production image
 FROM node:18-alpine
 
 WORKDIR /app/backend
 
-# Copy backend files
-COPY backend/package*.json ./
-COPY backend/node_modules ./node_modules
+# Copy backend dependencies from builder
+COPY --from=backend-builder /app/backend/node_modules ./node_modules
+COPY --from=backend-builder /app/backend/package*.json ./
+
+# Copy backend source
 COPY backend/src ./src/
 
-# Copy pre-built frontend
+# Copy built frontend
 WORKDIR /app
-COPY frontend/build ./public/
+COPY --from=frontend-builder /app/frontend/build ./public/
 
 # Create data directory for database
 RUN mkdir -p /app/data
