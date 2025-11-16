@@ -9,7 +9,7 @@ WORKDIR /app/backend
 COPY backend/package*.json ./
 
 # Install production dependencies
-RUN npm ci --only=production
+RUN npm install --production --no-audit --prefer-offline
 
 # Stage 2: Build frontend
 FROM node:18-alpine AS frontend-builder
@@ -20,7 +20,7 @@ WORKDIR /app/frontend
 COPY frontend/package*.json ./
 
 # Install dependencies
-RUN npm ci
+RUN npm install --no-audit --prefer-offline
 
 # Copy frontend source
 COPY frontend/public ./public/

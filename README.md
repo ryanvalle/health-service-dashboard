@@ -371,6 +371,22 @@ The application includes:
 
 ## 🐛 Troubleshooting
 
+### Docker Build Issues
+
+If `docker compose build` fails with npm errors:
+
+```bash
+# The build uses npm install with --prefer-offline flag
+# If you still have issues, try clearing Docker cache:
+docker builder prune -a
+docker compose build --no-cache
+```
+
+For environments with restricted network access, the Dockerfile uses `npm install` instead of `npm ci` with flags to minimize network calls:
+- `--production`: Install only production dependencies (backend)
+- `--no-audit`: Skip security audit (speeds up build)
+- `--prefer-offline`: Use cached packages when available
+
 ### Database Issues
 ```bash
 # Reset database (WARNING: deletes all data)
