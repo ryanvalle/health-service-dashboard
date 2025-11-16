@@ -1,4 +1,5 @@
 const db = require('../config/database');
+const crypto = require('crypto');
 
 class Endpoint {
   static async create(data) {
@@ -16,13 +17,17 @@ class Endpoint {
       is_active = 1
     } = data;
 
-    const result = await db.run(
+    // Generate UUID for the endpoint
+    const id = crypto.randomUUID();
+
+    await db.run(
       `INSERT INTO endpoints (
-        name, url, method, headers, expected_status_codes, 
+        id, name, url, method, headers, expected_status_codes, 
         json_path_assertions, response_time_threshold, check_frequency, 
         cron_schedule, timeout, is_active
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
+        id,
         name,
         url,
         method,
@@ -37,7 +42,7 @@ class Endpoint {
       ]
     );
 
-    return this.findById(result.lastID);
+    return this.findById(id);
   }
 
   static async findById(id) {

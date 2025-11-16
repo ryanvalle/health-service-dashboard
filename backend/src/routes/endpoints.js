@@ -54,17 +54,18 @@ router.get('/', async (req, res) => {
  * @swagger
  * /api/endpoints/{id}:
  *   get:
- *     summary: Get a single endpoint by ID
+ *     summary: Get a single endpoint by UUID
  *     tags: [Endpoints]
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
+ *           format: uuid
  */
 router.get('/:id', [
-  param('id').isInt()
+  param('id').isUUID()
 ], validate, async (req, res) => {
   try {
     const endpoint = await Endpoint.findById(req.params.id);
@@ -122,7 +123,7 @@ router.post('/', [
  *     tags: [Endpoints]
  */
 router.put('/:id', [
-  param('id').isInt(),
+  param('id').isUUID(),
   body('name').optional().notEmpty().trim(),
   body('url').optional().isURL(),
   body('method').optional().isIn(['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD']),
@@ -154,11 +155,11 @@ router.put('/:id', [
  *     tags: [Endpoints]
  */
 router.delete('/:id', [
-  param('id').isInt()
+  param('id').isUUID()
 ], validate, async (req, res) => {
   try {
     // Unschedule the endpoint
-    schedulerService.unscheduleEndpoint(parseInt(req.params.id));
+    schedulerService.unscheduleEndpoint(req.params.id);
 
     const success = await Endpoint.delete(req.params.id);
     if (!success) {
@@ -180,7 +181,7 @@ router.delete('/:id', [
  *     tags: [Endpoints]
  */
 router.post('/:id/check', [
-  param('id').isInt()
+  param('id').isUUID()
 ], validate, async (req, res) => {
   try {
     const endpoint = await Endpoint.findById(req.params.id);
@@ -204,7 +205,7 @@ router.post('/:id/check', [
  *     tags: [Endpoints]
  */
 router.get('/:id/history', [
-  param('id').isInt()
+  param('id').isUUID()
 ], validate, async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 100;

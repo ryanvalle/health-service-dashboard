@@ -1,6 +1,7 @@
 const db = require('./database');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 async function migrate() {
   try {
@@ -21,11 +22,11 @@ async function migrate() {
     await db.connect();
     console.log('[MIGRATE] Connected successfully');
 
-    // Create endpoints table
+    // Create endpoints table with UUID
     console.log('[MIGRATE] Creating endpoints table...');
     await db.run(`
       CREATE TABLE IF NOT EXISTS endpoints (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         url TEXT NOT NULL,
         method TEXT DEFAULT 'GET',
@@ -48,7 +49,7 @@ async function migrate() {
     await db.run(`
       CREATE TABLE IF NOT EXISTS check_results (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        endpoint_id INTEGER NOT NULL,
+        endpoint_id TEXT NOT NULL,
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
         is_healthy INTEGER NOT NULL,
         status_code INTEGER,
