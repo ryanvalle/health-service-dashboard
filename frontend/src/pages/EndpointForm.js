@@ -23,6 +23,10 @@ function EndpointForm() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [jsonErrors, setJsonErrors] = useState({
+    headers: null,
+    json_path_assertions: null
+  });
 
   useEffect(() => {
     if (isEdit) {
@@ -59,6 +63,63 @@ function EndpointForm() {
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
+
+    // Clear JSON error when user starts typing
+    if (name === 'headers' || name === 'json_path_assertions') {
+      setJsonErrors(prev => ({
+        ...prev,
+        [name]: null
+      }));
+    }
+  };
+
+  const formatJSON = (fieldName) => {
+    const value = formData[fieldName];
+    if (!value || !value.trim()) {
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(value);
+      const formatted = JSON.stringify(parsed, null, 2);
+      setFormData(prev => ({
+        ...prev,
+        [fieldName]: formatted
+      }));
+      setJsonErrors(prev => ({
+        ...prev,
+        [fieldName]: null
+      }));
+    } catch (err) {
+      setJsonErrors(prev => ({
+        ...prev,
+        [fieldName]: `Invalid JSON: ${err.message}`
+      }));
+    }
+  };
+
+  const validateJSON = (fieldName) => {
+    const value = formData[fieldName];
+    if (!value || !value.trim()) {
+      setJsonErrors(prev => ({
+        ...prev,
+        [fieldName]: null
+      }));
+      return;
+    }
+
+    try {
+      JSON.parse(value);
+      setJsonErrors(prev => ({
+        ...prev,
+        [fieldName]: null
+      }));
+    } catch (err) {
+      setJsonErrors(prev => ({
+        ...prev,
+        [fieldName]: `Invalid JSON: ${err.message}`
+      }));
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -179,13 +240,28 @@ function EndpointForm() {
 
         <div className="form-group">
           <label className="form-label">Custom Headers (JSON)</label>
-          <textarea
-            name="headers"
-            className="form-textarea"
-            value={formData.headers}
-            onChange={handleChange}
-            placeholder='{"Authorization": "Bearer token", "Content-Type": "application/json"}'
-          />
+          <div style={{ position: 'relative' }}>
+            <textarea
+              name="headers"
+              className="form-textarea"
+              value={formData.headers}
+              onChange={handleChange}
+              onBlur={() => validateJSON('headers')}
+              placeholder='{"Authorization": "Bearer token", "Content-Type": "application/json"}'
+              style={{ borderColor: jsonErrors.headers ? '#e74c3c' : undefined }}
+            />
+            <button
+              type="button"
+              className="btn-format-json"
+              onClick={() => formatJSON('headers')}
+              title="Format JSON"
+            >
+              Format JSON
+            </button>
+          </div>
+          {jsonErrors.headers && (
+            <span className="form-error">{jsonErrors.headers}</span>
+          )}
           <span className="form-hint">Optional: Custom HTTP headers as JSON object</span>
         </div>
 
@@ -204,13 +280,31 @@ function EndpointForm() {
 
         <div className="form-group">
           <label className="form-label">JSON Path Assertions (JSON Array)</label>
-          <textarea
-            name="json_path_assertions"
-            className="form-textarea"
-            value={formData.json_path_assertions}
-            onChange={handleChange}
-            placeholder='[{"path": "data.status", "operator": "equals", "value": "ok"}]'
-          />
+          <div style={{ position: 'relative' }}>
+            <textarea
+              name="json_path_assertions"
+              className="form-textarea"
+              value={formData.json_path_assertions}
+              onChange={handleChange}
+              onBlur={() => validateJSON('json_path_assertions')}
+              placeholder='[{"path": "data.status", "operator": "equals", "value": "ok"}]'
+              style={{ 
+                borderColor: jsonErrors.json_path_assertions ? '#e74c3c' : undefined,
+                minHeight: '120px'
+              }}
+            />
+            <button
+              type="button"
+              className="btn-format-json"
+              onClick={() => formatJSON('json_path_assertions')}
+              title="Format JSON"
+            >
+              Format JSON
+            </button>
+          </div>
+          {jsonErrors.json_path_assertions && (
+            <span className="form-error">{jsonErrors.json_path_assertions}</span>
+          )}
           <span className="form-hint">
             Optional: Array of assertions to validate response body. 
             Operators: equals, notEquals, contains, exists
