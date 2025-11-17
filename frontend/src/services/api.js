@@ -2,7 +2,16 @@ import axios from 'axios';
 
 // In production (Docker), API is served from same origin
 // In development, proxy is configured in package.json
-const API_BASE_URL = process.env.REACT_APP_API_URL || '';
+// In Electron, API is always at localhost:3001
+const getAPIBaseURL = () => {
+  // Check if running in Electron
+  if (window.electron && window.electron.isElectron) {
+    return 'http://localhost:3001';
+  }
+  return process.env.REACT_APP_API_URL || '';
+};
+
+const API_BASE_URL = getAPIBaseURL();
 
 const api = axios.create({
   baseURL: API_BASE_URL,

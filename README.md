@@ -1,11 +1,16 @@
 # Service Health Check Dashboard
 
-A full-stack web application for monitoring the health of your services with automated health checks, detailed reporting, and a responsive dashboard interface.
+A full-stack application for monitoring the health of your services with automated health checks, detailed reporting, and a responsive dashboard interface. **Available as both a web application and a standalone desktop app!**
 
 ![Health Check Dashboard](https://img.shields.io/badge/status-active-success.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
 ## 🚀 Features
+
+### Deployment Options
+- **🖥️ Desktop Application**: Run as a standalone Electron app on Windows, macOS, or Linux
+- **🌐 Web Application**: Deploy with Docker or run locally with Node.js
+- **📦 No Dependencies**: Desktop app requires no Docker or external database setup
 
 ### Core Functionality
 - **Configuration Interface**: Web UI to add, edit, and delete health check endpoints
@@ -54,6 +59,7 @@ For each endpoint, you can configure:
 - **Database**: SQLite (lightweight, no separate server needed)
 - **Scheduler**: node-cron for background health checks
 - **API Documentation**: Swagger/OpenAPI
+- **Desktop App**: Electron (cross-platform desktop wrapper)
 - **Containerization**: Docker with multi-stage builds
 
 ### Project Structure
@@ -107,6 +113,67 @@ health-service-dashboard/
 That's it! The application will be running with a persistent SQLite database.
 
 For local development setup or troubleshooting, see the [Quick Start Guide](QUICKSTART.md).
+
+### Desktop Application (NEW!)
+
+Run the Health Check Dashboard as a standalone desktop application:
+
+#### Quick Start
+
+**Option 1: Using installation script (Recommended)**
+```bash
+# Unix/Mac/Linux
+./scripts/install.sh
+
+# Windows
+scripts\install.bat
+
+# Then start the app
+npm start
+```
+
+**Option 2: Manual installation**
+```bash
+# Install dependencies
+npm install
+cd frontend && npm install && cd ..
+cd backend && npm install && cd ..
+
+# Build the frontend
+npm run build:frontend
+
+# Run the desktop app
+npm start
+```
+
+The desktop app will:
+- Start the backend server automatically
+- Launch the dashboard in a native desktop window
+- Store the database in your user data directory
+- Work completely offline (no Docker required)
+
+For detailed desktop app documentation, see [ELECTRON.md](ELECTRON.md).
+
+#### Building Desktop Installers
+
+Create distributable packages for different platforms:
+
+```bash
+# Build for all platforms (requires appropriate OS)
+npm run package:all
+
+# Build for specific platform
+npm run package:win    # Windows (NSIS installer and portable)
+npm run package:mac    # macOS (DMG and ZIP)
+npm run package:linux  # Linux (AppImage and DEB)
+```
+
+The packaged applications will be available in the `dist/` directory.
+
+**Note**: You can only build for certain platforms from certain operating systems:
+- Windows: Can build for Windows
+- macOS: Can build for macOS and Windows
+- Linux: Can build for Linux and Windows
 
 ### Local Development Setup
 

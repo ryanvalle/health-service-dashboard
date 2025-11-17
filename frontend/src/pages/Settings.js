@@ -7,6 +7,16 @@ function Settings() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
 
+  // Get API docs URL based on environment
+  const getAPIDocsURL = () => {
+    // Check if running in Electron
+    if (window.electron && window.electron.isElectron) {
+      return 'http://localhost:3001/api-docs';
+    }
+    // In web mode, use relative path or full URL
+    return window.location.origin + '/api-docs';
+  };
+
   useEffect(() => {
     fetchSettings();
   }, []);
@@ -92,7 +102,7 @@ function Settings() {
           Monitor your services with automated health checks and detailed reporting.
         </p>
         <p style={{ color: '#7f8c8d' }}>
-          API Documentation available at: <a href="/api-docs" target="_blank" rel="noopener noreferrer">/api-docs</a>
+          API Documentation available at: <a href={getAPIDocsURL()} target="_blank" rel="noopener noreferrer">Open API Docs</a>
         </p>
       </div>
     </div>
