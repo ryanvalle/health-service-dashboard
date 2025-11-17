@@ -42,6 +42,7 @@ function startBackendServer() {
       // Set environment variables for the backend
       process.env.PORT = '3001';
       process.env.NODE_ENV = 'production';
+      process.env.ELECTRON_APP = 'true'; // Disable swagger in electron
       process.env.DB_PATH = path.join(app.getPath('userData'), 'database.sqlite');
 
       console.log('Starting backend server...');

@@ -3,10 +3,8 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const path = require('path');
-const swaggerUi = require('swagger-ui-express');
 const db = require('./config/database');
 const migrate = require('./config/migrate');
-const swaggerSpecs = require('./config/swagger');
 const endpointsRouter = require('./routes/endpoints');
 const settingsRouter = require('./routes/settings');
 const schedulerService = require('./services/SchedulerService');
@@ -29,8 +27,16 @@ app.use((req, res, next) => {
   next();
 });
 
-// API Documentation
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
+// API Documentation - only load in non-packaged environments
+if (!process.env.ELECTRON_APP) {
+  try {
+    const swaggerUi = require('swagger-ui-express');
+    const swaggerSpecs = require('./config/swagger');
+    app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
+  } catch (err) {
+    console.log('Swagger UI not available (production build)');
+  }
+}
 
 // API Routes
 app.use('/api/endpoints', endpointsRouter);
