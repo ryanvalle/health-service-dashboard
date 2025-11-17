@@ -119,6 +119,20 @@ For local development setup or troubleshooting, see the [Quick Start Guide](QUIC
 Run the Health Check Dashboard as a standalone desktop application:
 
 #### Quick Start
+
+**Option 1: Using installation script (Recommended)**
+```bash
+# Unix/Mac/Linux
+./scripts/install.sh
+
+# Windows
+scripts\install.bat
+
+# Then start the app
+npm start
+```
+
+**Option 2: Manual installation**
 ```bash
 # Install dependencies
 npm install
@@ -137,6 +151,8 @@ The desktop app will:
 - Launch the dashboard in a native desktop window
 - Store the database in your user data directory
 - Work completely offline (no Docker required)
+
+For detailed desktop app documentation, see [ELECTRON.md](ELECTRON.md).
 
 #### Building Desktop Installers
 
