@@ -6,14 +6,15 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
+    "prebuild": "npm run build:frontend && npm run build:backend",
     "build": "npm run build:frontend && npm run build:backend",
     "build:frontend": "cd frontend && npm run build",
-    "build:backend": "cd backend && npm install --production",
-    "package": "electron-builder",
-    "package:all": "electron-builder -mwl",
-    "package:win": "electron-builder --win",
-    "package:mac": "electron-builder --mac",
-    "package:linux": "electron-builder --linux"
+    "build:backend": "cd backend && npm install --production=false",
+    "package": "npm run prebuild && electron-builder",
+    "package:all": "npm run prebuild && electron-builder -mwl",
+    "package:win": "npm run prebuild && electron-builder --win",
+    "package:mac": "npm run prebuild && electron-builder --mac",
+    "package:linux": "npm run prebuild && electron-builder --linux"
   },
   "build": {
     "appId": "com.healthcheck.dashboard",
@@ -25,15 +26,17 @@
       "electron/**/*",
       "frontend/build/**/*",
       "backend/**/*",
-      "!backend/node_modules/**/*",
       "!backend/data/**/*"
     ],
     "extraResources": [
       {
         "from": "backend",
         "to": "backend",
-        "filter": ["**/*", "!node_modules/**/*", "!data/**/*"]
+        "filter": ["**/*", "!data/**/*"]
       }
+    ],
+    "asarUnpack": [
+      "backend/**/*"
     ],
     "mac": {
       "category": "public.app-category.developer-tools",

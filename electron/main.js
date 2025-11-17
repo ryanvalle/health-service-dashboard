@@ -1,76 +1,75 @@
 const { app, BrowserWindow, Menu } = require('electron');
 const path = require('path');
-const { spawn } = require('child_process');
 
 let mainWindow;
-let backendProcess;
+let backendServer;
 
 // Check if running in development mode
-const isDev = process.argv.includes('--dev');
+const isDev = process.argv.includes('--dev') || !app.isPackaged;
+
+// Request single instance lock
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  console.log('Another instance is already running. Quitting...');
+  app.quit();
+} else {
+  // Handle second instance
+  app.on('second-instance', (event, commandLine, workingDirectory) => {
+    // Someone tried to run a second instance, focus our window instead
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+}
 
 // Determine the backend path
-const backendPath = isDev 
-  ? path.join(__dirname, '../backend')
-  : path.join(process.resourcesPath, 'backend');
+// In development, backend is in ../backend relative to electron folder
+// In packaged app, backend is in resources/backend
+const backendPath = app.isPackaged
+  ? path.join(process.resourcesPath, 'backend')
+  : path.join(__dirname, '../backend');
 
 // Determine the frontend path
-const frontendPath = isDev
-  ? 'http://localhost:3000'
-  : `file://${path.join(__dirname, '../frontend/build/index.html')}`;
+const frontendPath = app.isPackaged
+  ? `file://${path.join(__dirname, '../frontend/build/index.html')}`
+  : 'http://localhost:3000';
 
 function startBackendServer() {
   return new Promise((resolve, reject) => {
-    const nodeExecutable = isDev ? 'node' : process.execPath;
-    const backendEntry = path.join(backendPath, 'src', 'index.js');
-    
-    // Set environment variables for the backend
-    const env = {
-      ...process.env,
-      PORT: '3001',
-      NODE_ENV: 'production',
-      DB_PATH: path.join(app.getPath('userData'), 'database.sqlite')
-    };
+    try {
+      // Set environment variables for the backend
+      process.env.PORT = '3001';
+      process.env.NODE_ENV = 'production';
+      process.env.DB_PATH = path.join(app.getPath('userData'), 'database.sqlite');
 
-    console.log('Starting backend server...');
-    console.log('Backend path:', backendPath);
-    console.log('Backend entry:', backendEntry);
-    console.log('Database path:', env.DB_PATH);
+      console.log('Starting backend server...');
+      console.log('Backend path:', backendPath);
+      console.log('Database path:', process.env.DB_PATH);
 
-    backendProcess = spawn(nodeExecutable, [backendEntry], {
-      cwd: backendPath,
-      env: env,
-      stdio: ['ignore', 'pipe', 'pipe']
-    });
+      // Change to backend directory to ensure proper module resolution
+      const originalDir = process.cwd();
+      process.chdir(backendPath);
 
-    backendProcess.stdout.on('data', (data) => {
-      console.log(`Backend: ${data.toString().trim()}`);
-      if (data.toString().includes('Server running on port')) {
+      // Load the backend application
+      // The backend's index.js will start the server automatically
+      const backendModule = require(path.join(backendPath, 'src', 'index.js'));
+      backendServer = backendModule;
+
+      // Restore original directory
+      process.chdir(originalDir);
+
+      // Wait a bit for the server to start
+      setTimeout(() => {
+        console.log('Backend server started successfully');
         resolve();
-      }
-    });
+      }, 2000);
 
-    backendProcess.stderr.on('data', (data) => {
-      console.error(`Backend Error: ${data.toString().trim()}`);
-    });
-
-    backendProcess.on('error', (error) => {
+    } catch (error) {
       console.error('Failed to start backend:', error);
       reject(error);
-    });
-
-    backendProcess.on('exit', (code) => {
-      console.log(`Backend process exited with code ${code}`);
-      if (code !== 0 && code !== null) {
-        reject(new Error(`Backend exited with code ${code}`));
-      }
-    });
-
-    // Timeout if backend doesn't start within 30 seconds
-    setTimeout(() => {
-      if (backendProcess && !backendProcess.killed) {
-        resolve(); // Proceed anyway
-      }
-    }, 30000);
+    }
   });
 }
 
@@ -89,13 +88,18 @@ function createWindow() {
   });
 
   // Load the frontend
-  if (isDev) {
-    // In development, load from the webpack dev server
-    mainWindow.loadURL('http://localhost:3000');
-    mainWindow.webContents.openDevTools();
-  } else {
+  if (app.isPackaged) {
     // In production, load from the built files
     mainWindow.loadFile(path.join(__dirname, '../frontend/build/index.html'));
+  } else {
+    // In development, load from the webpack dev server or built files
+    if (process.argv.includes('--dev')) {
+      mainWindow.loadURL('http://localhost:3000');
+      mainWindow.webContents.openDevTools();
+    } else {
+      // Running via npm start without --dev flag, load built files
+      mainWindow.loadFile(path.join(__dirname, '../frontend/build/index.html'));
+    }
   }
 
   // Create application menu
@@ -114,7 +118,9 @@ function createWindow() {
         { type: 'separator' },
         { role: 'cut' },
         { role: 'copy' },
-        { role: 'paste' }
+        { role: 'paste' },
+        { type: 'separator' },
+        { role: 'selectAll' }
       ]
     },
     {
@@ -186,10 +192,12 @@ app.on('activate', () => {
 
 // Clean up on quit
 app.on('before-quit', () => {
-  if (backendProcess) {
+  console.log('Application shutting down...');
+  if (backendServer) {
     console.log('Stopping backend server...');
-    backendProcess.kill('SIGTERM');
-    backendProcess = null;
+    // The backend server handles its own cleanup via SIGTERM/SIGINT handlers
+    process.emit('SIGTERM');
+    backendServer = null;
   }
 });
 

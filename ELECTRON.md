@@ -123,9 +123,11 @@ The desktop application consists of:
 
 1. **Main Process** (`electron/main.js`):
    - Manages the Electron app lifecycle
-   - Starts the Node.js backend server
+   - Runs the Node.js backend server **directly in the Electron process** (no separate Node.js required)
+   - Backend dependencies are bundled with the application
    - Creates and manages the application window
    - Handles cleanup on exit
+   - Implements single-instance lock to prevent multiple app instances
 
 2. **Preload Script** (`electron/preload.js`):
    - Provides secure communication between renderer and main process
@@ -135,6 +137,13 @@ The desktop application consists of:
    - The React frontend application
    - Automatically detects Electron environment
    - Connects to the local backend server
+
+## Key Features
+
+- **No External Node.js Required**: The backend runs within Electron's Node.js runtime
+- **Single Instance**: Only one instance of the app can run at a time
+- **Bundled Dependencies**: All backend dependencies are included in the application package
+- **Self-contained**: No external services or installations needed
 
 ## Troubleshooting
 
@@ -154,9 +163,23 @@ The desktop application consists of:
 
 3. Check for port conflicts (port 3001 must be available)
 
+4. Try running in development mode first to see detailed logs:
+   ```bash
+   npm run dev
+   ```
+
+### Multiple app instances opening
+
+This issue has been fixed with single-instance locking. If you still experience this:
+1. Make sure you're using the latest version of the code
+2. Completely quit all instances of the app
+3. Rebuild the application: `npm run package`
+
 ### Backend server errors
 
-Check the console output from Electron. The backend logs are printed to the Electron console.
+- In development mode: Check the Electron console (DevTools are auto-opened)
+- In production: Check the terminal where you launched the app
+- The backend runs directly in the Electron process, so all logs appear in the Electron console
 
 ### Database issues
 
@@ -165,6 +188,14 @@ The database is created automatically on first run. If you need to reset:
 1. Close the application
 2. Delete the database file (see Application Data section above)
 3. Restart the application
+
+### Build errors
+
+If you encounter errors during packaging:
+1. Ensure Node.js 18+ is installed (check with `node --version`)
+2. Clear the dist folder: `rm -rf dist`
+3. Rebuild: `npm run package`
+4. Check that all backend dependencies are installed: `cd backend && npm install`
 
 ## Web vs Desktop
 
