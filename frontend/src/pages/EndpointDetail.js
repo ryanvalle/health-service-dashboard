@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { endpointsAPI } from '../services/api';
 import { useTimezone } from '../context/TimezoneContext';
-import { formatTimestamp, formatRelativeTime, calculateNextCheckTime } from '../utils/dateUtils';
-import { LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { formatTimestamp, formatRelativeTime, calculateNextCheckTime, formatChartTimestamp } from '../utils/dateUtils';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 function EndpointDetail() {
   const { id } = useParams();
@@ -84,38 +84,34 @@ function EndpointDetail() {
   const statusText = endpoint.latest_check?.is_healthy ? 'healthy' : 
                      endpoint.latest_check ? 'unhealthy' : 'unknown';
 
-  // Prepare data for charts
-  const responseTimeData = history.slice().reverse().map((check, index) => ({
-    name: index + 1,
+  // Prepare data for charts with formatted timestamps
+  const responseTimeData = history.slice().reverse().map((check) => ({
     time: check.response_time || 0,
-    timestamp: check.timestamp
+    timestamp: check.timestamp,
+    label: formatChartTimestamp(check.timestamp, { timezone: effectiveTimezone })
   }));
 
   // Calculate uptime data over time (rolling calculation)
   const uptimeData = [];
   let healthyCount = 0;
-  history.slice().reverse().forEach((check, index) => {
+  history.slice().reverse().forEach((check) => {
     if (check.is_healthy) healthyCount++;
-    const uptimePercent = ((healthyCount / (index + 1)) * 100).toFixed(1);
+    const uptimePercent = ((healthyCount / (uptimeData.length + 1)) * 100).toFixed(1);
     uptimeData.push({
-      name: index + 1,
       uptime: parseFloat(uptimePercent),
-      timestamp: check.timestamp
+      timestamp: check.timestamp,
+      label: formatChartTimestamp(check.timestamp, { timezone: effectiveTimezone })
     });
   });
-
-  // Pie chart data for uptime
-  const uptimePercent = parseFloat(endpoint.stats_30d?.uptime_percentage) || 0;
-  const downtimePercent = 100 - uptimePercent;
-  const pieData = [
-    { name: 'Uptime', value: parseFloat(uptimePercent.toFixed(2)) },
-    { name: 'Downtime', value: parseFloat(downtimePercent.toFixed(2)) }
-  ];
-  const COLORS = ['#2ecc71', '#e74c3c'];
 
   // Calculate next check time
   const nextCheckTime = calculateNextCheckTime(endpoint);
   const lastCheckTime = endpoint.latest_check?.timestamp;
+  
+  // Determine uptime color based on threshold
+  const uptimePercent = parseFloat(endpoint.stats_30d?.uptime_percentage) || 0;
+  const uptimeThreshold = endpoint.uptime_threshold || 90;
+  const uptimeColor = uptimePercent >= uptimeThreshold ? '#2ecc71' : '#e74c3c';
 
   return (
     <div className="detail-container">
@@ -147,7 +143,9 @@ function EndpointDetail() {
       <div className="detail-info">
         <div className="info-card">
           <div className="info-label">Uptime (30 days)</div>
-          <div className="info-value">{endpoint.stats_30d?.uptime_percentage || 0}%</div>
+          <div className="info-value" style={{ color: uptimeColor, fontWeight: 'bold' }}>
+            {endpoint.stats_30d?.uptime_percentage || 0}%
+          </div>
         </div>
         <div className="info-card">
           <div className="info-label">Average Response Time</div>
@@ -209,26 +207,27 @@ function EndpointDetail() {
           <div style={{ marginBottom: '2rem' }}>
             <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#555' }}>Response Time Trends</h3>
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={responseTimeData}>
+              <LineChart data={responseTimeData} margin={{ bottom: 50 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
-                  dataKey="name" 
-                  label={{ value: 'Check Number', position: 'insideBottom', offset: -5 }}
+                  dataKey="label" 
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                  tick={{ fontSize: 12 }}
                 />
                 <YAxis 
                   label={{ value: 'Response Time (ms)', angle: -90, position: 'insideLeft' }}
                 />
                 <Tooltip 
                   formatter={(value) => [`${value}ms`, 'Response Time']}
-                  labelFormatter={(label) => `Check #${label}`}
+                  labelFormatter={(label) => label}
                 />
-                <Legend />
                 <Line 
                   type="monotone" 
                   dataKey="time" 
                   stroke="#3498db" 
                   strokeWidth={2}
-                  name="Response Time"
                   dot={{ r: 3 }}
                   activeDot={{ r: 5 }}
                 />
@@ -239,11 +238,14 @@ function EndpointDetail() {
           <div style={{ marginBottom: '2rem' }}>
             <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#555' }}>Uptime Trends</h3>
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={uptimeData}>
+              <LineChart data={uptimeData} margin={{ bottom: 50 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
-                  dataKey="name" 
-                  label={{ value: 'Check Number', position: 'insideBottom', offset: -5 }}
+                  dataKey="label" 
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                  tick={{ fontSize: 12 }}
                 />
                 <YAxis 
                   domain={[0, 100]}
@@ -251,43 +253,17 @@ function EndpointDetail() {
                 />
                 <Tooltip 
                   formatter={(value) => [`${value}%`, 'Uptime']}
-                  labelFormatter={(label) => `Check #${label}`}
+                  labelFormatter={(label) => label}
                 />
-                <Legend />
                 <Line 
                   type="monotone" 
                   dataKey="uptime" 
                   stroke="#2ecc71" 
                   strokeWidth={2}
-                  name="Uptime"
                   dot={{ r: 3 }}
                   activeDot={{ r: 5 }}
                 />
               </LineChart>
-            </ResponsiveContainer>
-          </div>
-
-          <div style={{ marginBottom: '2rem' }}>
-            <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#555' }}>Uptime Distribution (30 days)</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={true}
-                  label={({ name, value }) => `${name}: ${value}%`}
-                  outerRadius={100}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value) => `${value}%`} />
-                <Legend />
-              </PieChart>
             </ResponsiveContainer>
           </div>
         </div>

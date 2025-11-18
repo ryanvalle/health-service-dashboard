@@ -37,12 +37,22 @@ async function migrate() {
         check_frequency INTEGER,
         cron_schedule TEXT,
         timeout INTEGER DEFAULT 30000,
+        uptime_threshold INTEGER DEFAULT 90,
         is_active INTEGER DEFAULT 1,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);
     console.log('[MIGRATE] Endpoints table created');
+
+    // Add uptime_threshold column if it doesn't exist (for existing databases)
+    try {
+      await db.run(`ALTER TABLE endpoints ADD COLUMN uptime_threshold INTEGER DEFAULT 90`);
+      console.log('[MIGRATE] Added uptime_threshold column');
+    } catch (err) {
+      // Column already exists or other error, ignore
+      console.log('[MIGRATE] uptime_threshold column already exists or error:', err.message);
+    }
 
     // Create check_results table
     console.log('[MIGRATE] Creating check_results table...');

@@ -163,3 +163,34 @@ export function calculateNextCheckTime(endpoint) {
   
   return null;
 }
+
+/**
+ * Format a timestamp for chart axis labels (e.g., "11/17 @ 7:04p")
+ * 
+ * @param {string|Date} timestamp - Timestamp to format
+ * @param {Object} options - Formatting options
+ * @param {string} options.timezone - Optional timezone
+ * @returns {string} Formatted timestamp for chart axis
+ */
+export function formatChartTimestamp(timestamp, options = {}) {
+  const date = timestamp instanceof Date ? timestamp : parseTimestamp(timestamp);
+  if (!date || isNaN(date.getTime())) return '';
+  
+  const { timezone } = options;
+  
+  const formatOptions = {
+    timeZone: timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  };
+  
+  const formatted = new Intl.DateTimeFormat('en-US', formatOptions).format(date);
+  // Convert "11/17, 7:04 PM" to "11/17 @ 7:04p"
+  return formatted
+    .replace(', ', ' @ ')
+    .replace(' AM', 'a')
+    .replace(' PM', 'p');
+}
