@@ -11,6 +11,15 @@ function Settings() {
   const { timezone, setTimezone } = useTimezone();
   const timezoneOptions = getTimezoneOptions();
 
+  // OpenAI settings
+  const [openAIEnabled, setOpenAIEnabled] = useState(false);
+  const [openAIApiKey, setOpenAIApiKey] = useState('');
+  const [openAIResponseLimit, setOpenAIResponseLimit] = useState(1000);
+  const [openAICustomPrompt, setOpenAICustomPrompt] = useState('');
+  const [defaultPrompt, setDefaultPrompt] = useState('');
+  const [showDefaultPrompt, setShowDefaultPrompt] = useState(false);
+  const [savingOpenAI, setSavingOpenAI] = useState(false);
+
   // Get API docs URL based on environment
   const getAPIDocsURL = () => {
     // Check if running in Electron
@@ -23,16 +32,30 @@ function Settings() {
 
   useEffect(() => {
     fetchSettings();
+    fetchDefaultPrompt();
   }, []);
 
   const fetchSettings = async () => {
     try {
       const response = await settingsAPI.getAll();
       setRetentionDays(parseInt(response.data.retention_days) || 30);
+      setOpenAIEnabled(response.data.openai_enabled === 'true');
+      setOpenAIApiKey(response.data.openai_api_key || '');
+      setOpenAIResponseLimit(parseInt(response.data.openai_response_limit) || 1000);
+      setOpenAICustomPrompt(response.data.openai_custom_prompt || '');
       setLoading(false);
     } catch (err) {
       console.error('Failed to load settings:', err);
       setLoading(false);
+    }
+  };
+
+  const fetchDefaultPrompt = async () => {
+    try {
+      const response = await settingsAPI.getDefaultPrompt();
+      setDefaultPrompt(response.data.default_prompt);
+    } catch (err) {
+      console.error('Failed to load default prompt:', err);
     }
   };
 
@@ -48,6 +71,26 @@ function Settings() {
       setMessage({ type: 'error', text: 'Failed to update settings' });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleOpenAISubmit = async (e) => {
+    e.preventDefault();
+    setSavingOpenAI(true);
+    setMessage(null);
+
+    try {
+      await settingsAPI.updateOpenAI({
+        openai_enabled: openAIEnabled,
+        openai_api_key: openAIApiKey,
+        openai_response_limit: openAIResponseLimit,
+        openai_custom_prompt: openAICustomPrompt
+      });
+      setMessage({ type: 'success', text: 'OpenAI settings updated successfully!' });
+    } catch (err) {
+      setMessage({ type: 'error', text: 'Failed to update OpenAI settings' });
+    } finally {
+      setSavingOpenAI(false);
     }
   };
 
@@ -120,6 +163,119 @@ function Settings() {
           </button>
         </div>
       </form>
+
+      <div style={{ marginTop: '3rem', padding: '1.5rem', background: '#f8f9fa', borderRadius: '8px' }}>
+        <h2 style={{ marginBottom: '1.5rem', fontSize: '1.5rem', color: '#2c3e50' }}>OpenAI Analysis</h2>
+        <p style={{ marginBottom: '1.5rem', color: '#7f8c8d' }}>
+          Enable AI-powered analysis of failed health checks. When a check fails, you can request an analysis 
+          that provides insights into the failure and suggests potential solutions.
+        </p>
+
+        <form onSubmit={handleOpenAISubmit}>
+          <div className="form-group">
+            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={openAIEnabled}
+                onChange={(e) => setOpenAIEnabled(e.target.checked)}
+                style={{ marginRight: '0.5rem', width: '18px', height: '18px', cursor: 'pointer' }}
+              />
+              <span className="form-label" style={{ marginBottom: 0 }}>Enable OpenAI Analysis</span>
+            </label>
+            <span className="form-hint">
+              Turn on AI-powered analysis for failed health checks
+            </span>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">OpenAI API Key</label>
+            <input
+              type="password"
+              className="form-input"
+              value={openAIApiKey}
+              onChange={(e) => setOpenAIApiKey(e.target.value)}
+              placeholder="sk-..."
+              disabled={!openAIEnabled}
+            />
+            <span className="form-hint">
+              Your OpenAI API key. Get one from <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">OpenAI Platform</a>
+            </span>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Response Size Limit (tokens/words)</label>
+            <input
+              type="number"
+              className="form-input"
+              value={openAIResponseLimit}
+              onChange={(e) => setOpenAIResponseLimit(parseInt(e.target.value))}
+              min="100"
+              max="4000"
+              disabled={!openAIEnabled}
+            />
+            <span className="form-hint">
+              Maximum length of AI analysis response (100-4000 tokens)
+            </span>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Default AI Prompt</label>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => setShowDefaultPrompt(!showDefaultPrompt)}
+              style={{ 
+                marginBottom: '0.5rem',
+                padding: '0.5rem 1rem',
+                fontSize: '0.9rem',
+                background: '#e9ecef',
+                color: '#495057'
+              }}
+            >
+              {showDefaultPrompt ? '▼ Hide' : '▶ Show'} Default Prompt
+            </button>
+            {showDefaultPrompt && (
+              <pre style={{ 
+                padding: '1rem', 
+                background: '#fff', 
+                border: '1px solid #dee2e6',
+                borderRadius: '4px',
+                fontSize: '0.85rem',
+                whiteSpace: 'pre-wrap',
+                maxHeight: '300px',
+                overflow: 'auto'
+              }}>
+                {defaultPrompt}
+              </pre>
+            )}
+            <span className="form-hint">
+              This is the default prompt used by the AI. You can override it below.
+            </span>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Custom Prompt Override (optional)</label>
+            <textarea
+              className="form-input"
+              value={openAICustomPrompt}
+              onChange={(e) => setOpenAICustomPrompt(e.target.value)}
+              rows="6"
+              placeholder="Leave empty to use the default prompt"
+              disabled={!openAIEnabled}
+              style={{ fontFamily: 'monospace', fontSize: '0.9rem' }}
+            />
+            <span className="form-hint">
+              Override the default prompt with your own custom instructions for the AI
+            </span>
+          </div>
+
+          <div className="form-actions">
+            <button type="submit" className="btn btn-primary" disabled={savingOpenAI || !openAIEnabled}>
+              {savingOpenAI ? 'Saving...' : 'Save OpenAI Settings'}
+            </button>
+          </div>
+        </form>
+      </div>
 
       <div style={{ marginTop: '3rem', padding: '1.5rem', background: '#f8f9fa', borderRadius: '8px' }}>
         <h2 style={{ marginBottom: '1rem', fontSize: '1.25rem', color: '#2c3e50' }}>About</h2>

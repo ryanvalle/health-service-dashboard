@@ -3,6 +3,7 @@ const { body, param, validationResult } = require('express-validator');
 const Endpoint = require('../models/Endpoint');
 const CheckResult = require('../models/CheckResult');
 const HealthCheckService = require('../services/HealthCheckService');
+const OpenAIService = require('../services/OpenAIService');
 const schedulerService = require('../services/SchedulerService');
 
 const router = express.Router();
@@ -214,6 +215,59 @@ router.get('/:id/history', [
   } catch (error) {
     console.error('Error fetching check history:', error);
     res.status(500).json({ error: 'Failed to fetch check history' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/endpoints/{id}/check-results/{checkId}/analyze:
+ *   post:
+ *     summary: Analyze a failed check result using OpenAI
+ *     tags: [Endpoints]
+ */
+router.post('/:id/check-results/:checkId/analyze', [
+  param('id').isUUID(),
+  param('checkId').isInt()
+], validate, async (req, res) => {
+  try {
+    // Verify endpoint exists
+    const endpoint = await Endpoint.findById(req.params.id);
+    if (!endpoint) {
+      return res.status(404).json({ error: 'Endpoint not found' });
+    }
+
+    // Get the check result
+    const checkResult = await CheckResult.findById(parseInt(req.params.checkId));
+    if (!checkResult) {
+      return res.status(404).json({ error: 'Check result not found' });
+    }
+
+    // Verify the check result belongs to the endpoint
+    if (checkResult.endpoint_id !== endpoint.id) {
+      return res.status(400).json({ error: 'Check result does not belong to this endpoint' });
+    }
+
+    // Check if OpenAI is configured
+    const isConfigured = await OpenAIService.isConfigured();
+    if (!isConfigured) {
+      return res.status(400).json({ 
+        error: 'OpenAI analysis is not enabled or configured. Please configure OpenAI settings first.' 
+      });
+    }
+
+    // Analyze the check result
+    const analysis = await OpenAIService.analyzeCheckResult(endpoint, checkResult);
+    
+    // Store the analysis
+    await OpenAIService.storeAnalysis(checkResult.id, analysis);
+
+    res.json({
+      analysis,
+      analyzed_at: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error analyzing check result:', error);
+    res.status(500).json({ error: error.message || 'Failed to analyze check result' });
   }
 });
 
