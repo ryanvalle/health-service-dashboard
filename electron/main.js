@@ -151,6 +151,9 @@ function createWindow() {
               if (mainWindow.isMinimized()) mainWindow.restore();
               mainWindow.show();
               mainWindow.focus();
+            } else {
+              // If window was closed, recreate it
+              createWindow();
             }
           }
         }
@@ -178,6 +181,15 @@ function createWindow() {
   const menu = Menu.buildFromTemplate(template);
   Menu.setApplicationMenu(menu);
 
+  // On Mac, hide the window instead of closing it when user clicks close button
+  // This allows the app to continue running in the background
+  mainWindow.on('close', (event) => {
+    if (process.platform === 'darwin' && !app.isQuitting) {
+      event.preventDefault();
+      mainWindow.hide();
+    }
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
@@ -204,14 +216,18 @@ app.on('window-all-closed', () => {
 });
 
 app.on('activate', () => {
+  // On macOS, re-create window when dock icon is clicked and no windows are open
   if (mainWindow === null) {
     createWindow();
+  } else {
+    mainWindow.show();
   }
 });
 
 // Clean up on quit
 app.on('before-quit', () => {
   console.log('Application shutting down...');
+  app.isQuitting = true; // Set flag to allow window to close
   if (backendServer) {
     console.log('Stopping backend server...');
     // The backend server handles its own cleanup via SIGTERM/SIGINT handlers
