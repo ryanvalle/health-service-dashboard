@@ -14,6 +14,7 @@ class Endpoint {
       check_frequency,
       cron_schedule,
       timeout = 30000,
+      uptime_threshold = 90,
       is_active = 1
     } = data;
 
@@ -24,8 +25,8 @@ class Endpoint {
       `INSERT INTO endpoints (
         id, name, url, method, headers, expected_status_codes, 
         json_path_assertions, response_time_threshold, check_frequency, 
-        cron_schedule, timeout, is_active
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        cron_schedule, timeout, uptime_threshold, is_active
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         name,
@@ -38,6 +39,7 @@ class Endpoint {
         check_frequency,
         cron_schedule,
         timeout,
+        uptime_threshold,
         is_active
       ]
     );
@@ -64,7 +66,7 @@ class Endpoint {
 
     const updateFields = [
       'name', 'url', 'method', 'timeout', 'is_active',
-      'response_time_threshold', 'check_frequency', 'cron_schedule'
+      'response_time_threshold', 'check_frequency', 'cron_schedule', 'uptime_threshold'
     ];
 
     updateFields.forEach(field => {

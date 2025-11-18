@@ -18,6 +18,7 @@ function EndpointForm() {
     check_frequency: '5',
     cron_schedule: '',
     timeout: '30000',
+    uptime_threshold: '90',
     is_active: true
   });
 
@@ -50,6 +51,7 @@ function EndpointForm() {
         check_frequency: endpoint.check_frequency || '',
         cron_schedule: endpoint.cron_schedule || '',
         timeout: endpoint.timeout,
+        uptime_threshold: endpoint.uptime_threshold || '90',
         is_active: endpoint.is_active
       });
     } catch (err) {
@@ -166,6 +168,11 @@ function EndpointForm() {
       // Response time threshold
       if (formData.response_time_threshold) {
         data.response_time_threshold = parseInt(formData.response_time_threshold);
+      }
+
+      // Uptime threshold
+      if (formData.uptime_threshold) {
+        data.uptime_threshold = parseInt(formData.uptime_threshold);
       }
 
       // Scheduling
@@ -366,6 +373,21 @@ function EndpointForm() {
             max="300000"
           />
           <span className="form-hint">Request timeout in milliseconds (1000-300000)</span>
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">Uptime Threshold (%)</label>
+          <input
+            type="number"
+            name="uptime_threshold"
+            className="form-input"
+            value={formData.uptime_threshold}
+            onChange={handleChange}
+            min="0"
+            max="100"
+            placeholder="90"
+          />
+          <span className="form-hint">Uptime percentage threshold for color-coding (0-100). Green if above, red if below.</span>
         </div>
 
         <div className="form-group">

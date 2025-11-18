@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { endpointsAPI } from '../services/api';
 import { useTimezone } from '../context/TimezoneContext';
-import { formatTimestamp } from '../utils/dateUtils';
+import { formatTimestamp, formatRelativeTime, calculateNextCheckTime, formatChartTimestamp } from '../utils/dateUtils';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 function EndpointDetail() {
   const { id } = useParams();
@@ -83,6 +84,35 @@ function EndpointDetail() {
   const statusText = endpoint.latest_check?.is_healthy ? 'healthy' : 
                      endpoint.latest_check ? 'unhealthy' : 'unknown';
 
+  // Prepare data for charts with formatted timestamps
+  const responseTimeData = history.slice().reverse().map((check) => ({
+    time: check.response_time || 0,
+    timestamp: check.timestamp,
+    label: formatChartTimestamp(check.timestamp, { timezone: effectiveTimezone })
+  }));
+
+  // Calculate uptime data over time (rolling calculation)
+  const uptimeData = [];
+  let healthyCount = 0;
+  history.slice().reverse().forEach((check) => {
+    if (check.is_healthy) healthyCount++;
+    const uptimePercent = ((healthyCount / (uptimeData.length + 1)) * 100).toFixed(1);
+    uptimeData.push({
+      uptime: parseFloat(uptimePercent),
+      timestamp: check.timestamp,
+      label: formatChartTimestamp(check.timestamp, { timezone: effectiveTimezone })
+    });
+  });
+
+  // Calculate next check time
+  const nextCheckTime = calculateNextCheckTime(endpoint);
+  const lastCheckTime = endpoint.latest_check?.timestamp;
+  
+  // Determine uptime color based on threshold
+  const uptimePercent = parseFloat(endpoint.stats_30d?.uptime_percentage) || 0;
+  const uptimeThreshold = endpoint.uptime_threshold || 90;
+  const uptimeColor = uptimePercent >= uptimeThreshold ? '#2ecc71' : '#e74c3c';
+
   return (
     <div className="detail-container">
       <div className="detail-header">
@@ -113,7 +143,9 @@ function EndpointDetail() {
       <div className="detail-info">
         <div className="info-card">
           <div className="info-label">Uptime (30 days)</div>
-          <div className="info-value">{endpoint.stats_30d?.uptime_percentage || 0}%</div>
+          <div className="info-value" style={{ color: uptimeColor, fontWeight: 'bold' }}>
+            {endpoint.stats_30d?.uptime_percentage || 0}%
+          </div>
         </div>
         <div className="info-card">
           <div className="info-label">Average Response Time</div>
@@ -124,31 +156,34 @@ function EndpointDetail() {
           <div className="info-value">{endpoint.stats_30d?.total_checks || 0}</div>
         </div>
         <div className="info-card">
-          <div className="info-label">Check Frequency</div>
+          <div className="info-label">Last Check</div>
           <div className="info-value">
-            {endpoint.cron_schedule || `${endpoint.check_frequency} min`}
-          </div>
-        </div>
-      </div>
-
-      <div className="detail-info">
-        <div className="info-card">
-          <div className="info-label">Expected Status Codes</div>
-          <div className="info-value">{endpoint.expected_status_codes.join(', ')}</div>
-        </div>
-        <div className="info-card">
-          <div className="info-label">Timeout</div>
-          <div className="info-value">{endpoint.timeout}ms</div>
-        </div>
-        <div className="info-card">
-          <div className="info-label">Response Time Threshold</div>
-          <div className="info-value">
-            {endpoint.response_time_threshold ? `${endpoint.response_time_threshold}ms` : 'None'}
+            {lastCheckTime ? (
+              <>
+                <div>{formatTimestamp(lastCheckTime, { timezone: effectiveTimezone, format: 'full' })}</div>
+                <div style={{ fontSize: '0.85rem', color: '#7f8c8d', marginTop: '0.25rem' }}>
+                  {formatRelativeTime(lastCheckTime)}
+                </div>
+              </>
+            ) : 'Never'}
           </div>
         </div>
         <div className="info-card">
-          <div className="info-label">Status</div>
-          <div className="info-value">{endpoint.is_active ? 'Active' : 'Inactive'}</div>
+          <div className="info-label">Next Check</div>
+          <div className="info-value">
+            {nextCheckTime ? (
+              <>
+                <div>{formatTimestamp(nextCheckTime, { timezone: effectiveTimezone, format: 'full' })}</div>
+                <div style={{ fontSize: '0.85rem', color: '#7f8c8d', marginTop: '0.25rem' }}>
+                  {formatRelativeTime(nextCheckTime)}
+                </div>
+              </>
+            ) : endpoint.cron_schedule ? (
+              <div style={{ fontSize: '0.85rem' }}>
+                Cron: {endpoint.cron_schedule}
+              </div>
+            ) : 'Not scheduled'}
+          </div>
         </div>
       </div>
 
@@ -161,6 +196,75 @@ function EndpointDetail() {
                 {JSON.stringify(endpoint.headers, null, 2)}
               </pre>
             </div>
+          </div>
+        </div>
+      )}
+
+      {history.length > 0 && (
+        <div className="charts-section" style={{ marginTop: '2rem' }}>
+          <h2 className="history-title">Performance Trends</h2>
+          
+          <div style={{ marginBottom: '2rem' }}>
+            <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#555' }}>Response Time Trends</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={responseTimeData} margin={{ bottom: 50 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="label" 
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                  tick={{ fontSize: 12 }}
+                />
+                <YAxis 
+                  label={{ value: 'Response Time (ms)', angle: -90, position: 'insideLeft' }}
+                />
+                <Tooltip 
+                  formatter={(value) => [`${value}ms`, 'Response Time']}
+                  labelFormatter={(label) => label}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="time" 
+                  stroke="#3498db" 
+                  strokeWidth={2}
+                  dot={{ r: 3 }}
+                  activeDot={{ r: 5 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div style={{ marginBottom: '2rem' }}>
+            <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#555' }}>Uptime Trends</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={uptimeData} margin={{ bottom: 50 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="label" 
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                  tick={{ fontSize: 12 }}
+                />
+                <YAxis 
+                  domain={[0, 100]}
+                  label={{ value: 'Uptime (%)', angle: -90, position: 'insideLeft' }}
+                />
+                <Tooltip 
+                  formatter={(value) => [`${value}%`, 'Uptime']}
+                  labelFormatter={(label) => label}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="uptime" 
+                  stroke="#2ecc71" 
+                  strokeWidth={2}
+                  dot={{ r: 3 }}
+                  activeDot={{ r: 5 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         </div>
       )}
