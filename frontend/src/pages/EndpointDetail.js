@@ -4,6 +4,16 @@ import { endpointsAPI, analysisAPI } from '../services/api';
 import { useTimezone } from '../context/TimezoneContext';
 import { formatTimestamp, formatRelativeTime, calculateNextCheckTime, formatChartTimestamp } from '../utils/dateUtils';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
+
+// Configure marked for security
+marked.setOptions({
+  breaks: true,
+  gfm: true,
+  headerIds: false,
+  mangle: false
+});
 
 function EndpointDetail() {
   const { id } = useParams();
@@ -343,7 +353,7 @@ function EndpointDetail() {
                     {check.ai_analysis ? (
                       <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                          <strong style={{ color: '#2c3e50' }}>🤖 AI Analysis:</strong>
+                          <strong style={{ color: '#2c3e50' }}>🤖 Health-AI Analysis:</strong>
                           <button
                             onClick={() => handleAnalyze(check.id)}
                             disabled={analyzingCheckId === check.id}
@@ -356,17 +366,19 @@ function EndpointDetail() {
                             {analyzingCheckId === check.id ? '🔄 Re-analyzing...' : '🔄 Re-analyze'}
                           </button>
                         </div>
-                        <div style={{ 
-                          background: '#f8f9fa', 
-                          padding: '1rem', 
-                          borderRadius: '4px',
-                          whiteSpace: 'pre-wrap',
-                          fontSize: '0.9rem',
-                          color: '#495057',
-                          lineHeight: '1.6'
-                        }}>
-                          {check.ai_analysis}
-                        </div>
+                        <div 
+                          style={{ 
+                            background: '#f8f9fa', 
+                            padding: '1rem', 
+                            borderRadius: '4px',
+                            fontSize: '0.9rem',
+                            color: '#495057',
+                            lineHeight: '1.6'
+                          }}
+                          dangerouslySetInnerHTML={{ 
+                            __html: DOMPurify.sanitize(marked(check.ai_analysis)) 
+                          }}
+                        />
                         {check.analyzed_at && (
                           <div style={{ fontSize: '0.8rem', color: '#6c757d', marginTop: '0.5rem' }}>
                             Analyzed {formatRelativeTime(check.analyzed_at)}
@@ -384,7 +396,7 @@ function EndpointDetail() {
                           width: '100%'
                         }}
                       >
-                        {analyzingCheckId === check.id ? '🔄 Analyzing...' : '🤖 Analyze with AI'}
+                        {analyzingCheckId === check.id ? '🔄 Analyzing...' : '🤖 Why is it unhealth-AI?'}
                       </button>
                     )}
                   </div>
