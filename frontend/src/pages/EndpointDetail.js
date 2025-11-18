@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { endpointsAPI } from '../services/api';
 import { useTimezone } from '../context/TimezoneContext';
-import { formatTimestamp } from '../utils/dateUtils';
+import { formatTimestamp, formatRelativeTime, calculateNextCheckTime } from '../utils/dateUtils';
+import { LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 function EndpointDetail() {
   const { id } = useParams();
@@ -83,6 +84,39 @@ function EndpointDetail() {
   const statusText = endpoint.latest_check?.is_healthy ? 'healthy' : 
                      endpoint.latest_check ? 'unhealthy' : 'unknown';
 
+  // Prepare data for charts
+  const responseTimeData = history.slice().reverse().map((check, index) => ({
+    name: index + 1,
+    time: check.response_time || 0,
+    timestamp: check.timestamp
+  }));
+
+  // Calculate uptime data over time (rolling calculation)
+  const uptimeData = [];
+  let healthyCount = 0;
+  history.slice().reverse().forEach((check, index) => {
+    if (check.is_healthy) healthyCount++;
+    const uptimePercent = ((healthyCount / (index + 1)) * 100).toFixed(1);
+    uptimeData.push({
+      name: index + 1,
+      uptime: parseFloat(uptimePercent),
+      timestamp: check.timestamp
+    });
+  });
+
+  // Pie chart data for uptime
+  const uptimePercent = endpoint.stats_30d?.uptime_percentage || 0;
+  const downtimePercent = 100 - uptimePercent;
+  const pieData = [
+    { name: 'Uptime', value: parseFloat(uptimePercent.toFixed(2)) },
+    { name: 'Downtime', value: parseFloat(downtimePercent.toFixed(2)) }
+  ];
+  const COLORS = ['#2ecc71', '#e74c3c'];
+
+  // Calculate next check time
+  const nextCheckTime = calculateNextCheckTime(endpoint);
+  const lastCheckTime = endpoint.latest_check?.timestamp;
+
   return (
     <div className="detail-container">
       <div className="detail-header">
@@ -124,31 +158,34 @@ function EndpointDetail() {
           <div className="info-value">{endpoint.stats_30d?.total_checks || 0}</div>
         </div>
         <div className="info-card">
-          <div className="info-label">Check Frequency</div>
+          <div className="info-label">Last Check</div>
           <div className="info-value">
-            {endpoint.cron_schedule || `${endpoint.check_frequency} min`}
-          </div>
-        </div>
-      </div>
-
-      <div className="detail-info">
-        <div className="info-card">
-          <div className="info-label">Expected Status Codes</div>
-          <div className="info-value">{endpoint.expected_status_codes.join(', ')}</div>
-        </div>
-        <div className="info-card">
-          <div className="info-label">Timeout</div>
-          <div className="info-value">{endpoint.timeout}ms</div>
-        </div>
-        <div className="info-card">
-          <div className="info-label">Response Time Threshold</div>
-          <div className="info-value">
-            {endpoint.response_time_threshold ? `${endpoint.response_time_threshold}ms` : 'None'}
+            {lastCheckTime ? (
+              <>
+                <div>{formatTimestamp(lastCheckTime, { timezone: effectiveTimezone, format: 'full' })}</div>
+                <div style={{ fontSize: '0.85rem', color: '#7f8c8d', marginTop: '0.25rem' }}>
+                  {formatRelativeTime(lastCheckTime)}
+                </div>
+              </>
+            ) : 'Never'}
           </div>
         </div>
         <div className="info-card">
-          <div className="info-label">Status</div>
-          <div className="info-value">{endpoint.is_active ? 'Active' : 'Inactive'}</div>
+          <div className="info-label">Next Check</div>
+          <div className="info-value">
+            {nextCheckTime ? (
+              <>
+                <div>{formatTimestamp(nextCheckTime, { timezone: effectiveTimezone, format: 'full' })}</div>
+                <div style={{ fontSize: '0.85rem', color: '#7f8c8d', marginTop: '0.25rem' }}>
+                  {formatRelativeTime(nextCheckTime)}
+                </div>
+              </>
+            ) : endpoint.cron_schedule ? (
+              <div style={{ fontSize: '0.85rem' }}>
+                Cron: {endpoint.cron_schedule}
+              </div>
+            ) : 'Not scheduled'}
+          </div>
         </div>
       </div>
 
@@ -161,6 +198,97 @@ function EndpointDetail() {
                 {JSON.stringify(endpoint.headers, null, 2)}
               </pre>
             </div>
+          </div>
+        </div>
+      )}
+
+      {history.length > 0 && (
+        <div className="charts-section" style={{ marginTop: '2rem' }}>
+          <h2 className="history-title">Performance Trends</h2>
+          
+          <div style={{ marginBottom: '2rem' }}>
+            <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#555' }}>Response Time Trends</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={responseTimeData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="name" 
+                  label={{ value: 'Check Number', position: 'insideBottom', offset: -5 }}
+                />
+                <YAxis 
+                  label={{ value: 'Response Time (ms)', angle: -90, position: 'insideLeft' }}
+                />
+                <Tooltip 
+                  formatter={(value) => [`${value}ms`, 'Response Time']}
+                  labelFormatter={(label) => `Check #${label}`}
+                />
+                <Legend />
+                <Line 
+                  type="monotone" 
+                  dataKey="time" 
+                  stroke="#3498db" 
+                  strokeWidth={2}
+                  name="Response Time"
+                  dot={{ r: 3 }}
+                  activeDot={{ r: 5 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div style={{ marginBottom: '2rem' }}>
+            <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#555' }}>Uptime Trends</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={uptimeData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="name" 
+                  label={{ value: 'Check Number', position: 'insideBottom', offset: -5 }}
+                />
+                <YAxis 
+                  domain={[0, 100]}
+                  label={{ value: 'Uptime (%)', angle: -90, position: 'insideLeft' }}
+                />
+                <Tooltip 
+                  formatter={(value) => [`${value}%`, 'Uptime']}
+                  labelFormatter={(label) => `Check #${label}`}
+                />
+                <Legend />
+                <Line 
+                  type="monotone" 
+                  dataKey="uptime" 
+                  stroke="#2ecc71" 
+                  strokeWidth={2}
+                  name="Uptime"
+                  dot={{ r: 3 }}
+                  activeDot={{ r: 5 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div style={{ marginBottom: '2rem' }}>
+            <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#555' }}>Uptime Distribution (30 days)</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={pieData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={true}
+                  label={({ name, value }) => `${name}: ${value}%`}
+                  outerRadius={100}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {pieData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value) => `${value}%`} />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
           </div>
         </div>
       )}

@@ -92,3 +92,74 @@ export function getTimezoneOptions() {
 export function getSystemTimezone() {
   return Intl.DateTimeFormat().resolvedOptions().timeZone;
 }
+
+/**
+ * Format a timestamp as relative time (e.g., "4 minutes ago", "in 2 minutes")
+ * 
+ * @param {string|Date} timestamp - Timestamp to format
+ * @returns {string} Relative time string
+ */
+export function formatRelativeTime(timestamp) {
+  const date = timestamp instanceof Date ? timestamp : parseTimestamp(timestamp);
+  if (!date || isNaN(date.getTime())) return 'Invalid date';
+  
+  const now = new Date();
+  const diffMs = date.getTime() - now.getTime();
+  const diffSec = Math.abs(Math.floor(diffMs / 1000));
+  const isFuture = diffMs > 0;
+  
+  let value, unit;
+  
+  if (diffSec < 60) {
+    value = diffSec;
+    unit = 'second';
+  } else if (diffSec < 3600) {
+    value = Math.floor(diffSec / 60);
+    unit = 'minute';
+  } else if (diffSec < 86400) {
+    value = Math.floor(diffSec / 3600);
+    unit = 'hour';
+  } else if (diffSec < 2592000) {
+    value = Math.floor(diffSec / 86400);
+    unit = 'day';
+  } else if (diffSec < 31536000) {
+    value = Math.floor(diffSec / 2592000);
+    unit = 'month';
+  } else {
+    value = Math.floor(diffSec / 31536000);
+    unit = 'year';
+  }
+  
+  const plural = value !== 1 ? 's' : '';
+  
+  if (isFuture) {
+    return `in ${value} ${unit}${plural}`;
+  } else {
+    return `${value} ${unit}${plural} ago`;
+  }
+}
+
+/**
+ * Calculate the next check time for an endpoint
+ * 
+ * @param {Object} endpoint - Endpoint object with latest_check and check_frequency
+ * @returns {Date|null} Next check time or null if cannot be determined
+ */
+export function calculateNextCheckTime(endpoint) {
+  if (!endpoint.is_active) return null;
+  
+  // For interval-based checks
+  if (endpoint.check_frequency && endpoint.latest_check?.timestamp) {
+    const lastCheck = parseTimestamp(endpoint.latest_check.timestamp);
+    const intervalMs = endpoint.check_frequency * 60 * 1000;
+    return new Date(lastCheck.getTime() + intervalMs);
+  }
+  
+  // For cron-based checks, we can't easily calculate the next run time
+  // without the node-cron library, so return null
+  if (endpoint.cron_schedule) {
+    return null;
+  }
+  
+  return null;
+}
