@@ -105,7 +105,7 @@ function EndpointDetail() {
   });
 
   // Pie chart data for uptime
-  const uptimePercent = endpoint.stats_30d?.uptime_percentage || 0;
+  const uptimePercent = parseFloat(endpoint.stats_30d?.uptime_percentage) || 0;
   const downtimePercent = 100 - uptimePercent;
   const pieData = [
     { name: 'Uptime', value: parseFloat(uptimePercent.toFixed(2)) },
