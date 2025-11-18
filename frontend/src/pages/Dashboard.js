@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { endpointsAPI } from '../services/api';
+import { useTimezone } from '../context/TimezoneContext';
+import { formatTimestamp } from '../utils/dateUtils';
 
 function Dashboard() {
   const [endpoints, setEndpoints] = useState([]);
@@ -8,6 +10,7 @@ function Dashboard() {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState('all');
+  const { effectiveTimezone } = useTimezone();
 
   useEffect(() => {
     fetchEndpoints();
@@ -133,7 +136,10 @@ function Dashboard() {
                     <span className="stat-label">Last Check</span>
                     <span className="stat-value">
                       {endpoint.latest_check 
-                        ? new Date(endpoint.latest_check.timestamp).toLocaleTimeString()
+                        ? formatTimestamp(endpoint.latest_check.timestamp, { 
+                            timezone: effectiveTimezone, 
+                            format: 'time' 
+                          })
                         : 'Never'}
                     </span>
                   </div>

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { endpointsAPI } from '../services/api';
-import { format } from 'date-fns';
+import { useTimezone } from '../context/TimezoneContext';
+import { formatTimestamp } from '../utils/dateUtils';
 
 function EndpointDetail() {
   const { id } = useParams();
@@ -11,6 +12,7 @@ function EndpointDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [checking, setChecking] = useState(false);
+  const { effectiveTimezone } = useTimezone();
 
   useEffect(() => {
     fetchEndpoint();
@@ -178,7 +180,10 @@ function EndpointDetail() {
               >
                 <div className="history-meta">
                   <span className="history-timestamp">
-                    {format(new Date(check.timestamp), 'PPpp')}
+                    {formatTimestamp(check.timestamp, { 
+                      timezone: effectiveTimezone, 
+                      format: 'full' 
+                    })}
                   </span>
                   <span className={`status-badge status-${check.is_healthy ? 'healthy' : 'unhealthy'}`}>
                     {check.is_healthy ? 'healthy' : 'unhealthy'}
