@@ -133,4 +133,57 @@ router.get('/openai/default-prompt', (req, res) => {
   res.json({ default_prompt: DEFAULT_PROMPT });
 });
 
+/**
+ * @swagger
+ * /api/settings/notifications:
+ *   put:
+ *     summary: Update notification settings
+ *     tags: [Settings]
+ */
+router.put('/notifications', [
+  body('resend_enabled').optional().isBoolean(),
+  body('resend_api_key').optional().isString(),
+  body('notification_email').optional().isEmail()
+], validate, async (req, res) => {
+  try {
+    const updates = [];
+    
+    if (req.body.resend_enabled !== undefined) {
+      updates.push({
+        key: 'resend_enabled',
+        value: req.body.resend_enabled.toString()
+      });
+    }
+    
+    if (req.body.resend_api_key !== undefined) {
+      updates.push({
+        key: 'resend_api_key',
+        value: req.body.resend_api_key
+      });
+    }
+    
+    if (req.body.notification_email !== undefined) {
+      updates.push({
+        key: 'notification_email',
+        value: req.body.notification_email
+      });
+    }
+
+    for (const update of updates) {
+      await db.run(
+        'UPDATE settings SET value = ?, updated_at = CURRENT_TIMESTAMP WHERE key = ?',
+        [update.value, update.key]
+      );
+    }
+
+    res.json({ 
+      message: 'Notification settings updated successfully',
+      updated: updates.map(u => u.key)
+    });
+  } catch (error) {
+    console.error('Error updating notification settings:', error);
+    res.status(500).json({ error: 'Failed to update notification settings' });
+  }
+});
+
 module.exports = router;

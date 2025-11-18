@@ -1,5 +1,7 @@
 const axios = require('axios');
 const CheckResult = require('../models/CheckResult');
+const NotificationService = require('./NotificationService');
+const db = require('../config/database');
 
 class HealthCheckService {
   /**
@@ -89,6 +91,22 @@ class HealthCheckService {
 
     // Save result to database
     await CheckResult.create(result);
+
+    // Send notification if check failed
+    if (!result.is_healthy) {
+      try {
+        const settings = await db.all('SELECT * FROM settings');
+        const settingsObj = settings.reduce((acc, setting) => {
+          acc[setting.key] = setting.value;
+          return acc;
+        }, {});
+        
+        await NotificationService.sendFailureEmail(endpoint, result, settingsObj);
+      } catch (error) {
+        console.error('Error sending failure notification:', error);
+        // Don't fail the health check if notification fails
+      }
+    }
 
     return result;
   }

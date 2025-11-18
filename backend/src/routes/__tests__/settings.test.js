@@ -121,3 +121,93 @@ describe('Settings Routes - OpenAI', () => {
     });
   });
 });
+
+describe('Settings Routes - Notifications', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('PUT /api/settings/notifications', () => {
+    it('should update notification enabled setting', async () => {
+      db.run.mockResolvedValue({});
+
+      const response = await request(app)
+        .put('/api/settings/notifications')
+        .send({ resend_enabled: true })
+        .expect(200);
+
+      expect(response.body.message).toBe('Notification settings updated successfully');
+      expect(response.body.updated).toContain('resend_enabled');
+      expect(db.run).toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE settings'),
+        ['true', 'resend_enabled']
+      );
+    });
+
+    it('should update Resend API key', async () => {
+      db.run.mockResolvedValue({});
+
+      const response = await request(app)
+        .put('/api/settings/notifications')
+        .send({ resend_api_key: 're_test123' })
+        .expect(200);
+
+      expect(response.body.updated).toContain('resend_api_key');
+      expect(db.run).toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE settings'),
+        ['re_test123', 'resend_api_key']
+      );
+    });
+
+    it('should update notification email', async () => {
+      db.run.mockResolvedValue({});
+
+      const response = await request(app)
+        .put('/api/settings/notifications')
+        .send({ notification_email: 'test@example.com' })
+        .expect(200);
+
+      expect(response.body.updated).toContain('notification_email');
+      expect(db.run).toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE settings'),
+        ['test@example.com', 'notification_email']
+      );
+    });
+
+    it('should update multiple notification settings at once', async () => {
+      db.run.mockResolvedValue({});
+
+      const response = await request(app)
+        .put('/api/settings/notifications')
+        .send({
+          resend_enabled: true,
+          resend_api_key: 're_test123',
+          notification_email: 'alerts@example.com'
+        })
+        .expect(200);
+
+      expect(response.body.updated).toEqual(
+        expect.arrayContaining(['resend_enabled', 'resend_api_key', 'notification_email'])
+      );
+      expect(db.run).toHaveBeenCalledTimes(3);
+    });
+
+    it('should validate email format', async () => {
+      const response = await request(app)
+        .put('/api/settings/notifications')
+        .send({ notification_email: 'invalid-email' })
+        .expect(400);
+
+      expect(response.body.errors).toBeDefined();
+    });
+
+    it('should handle database errors', async () => {
+      db.run.mockRejectedValue(new Error('Database error'));
+
+      await request(app)
+        .put('/api/settings/notifications')
+        .send({ resend_enabled: true })
+        .expect(500);
+    });
+  });
+});

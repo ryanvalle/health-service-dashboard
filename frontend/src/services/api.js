@@ -36,7 +36,8 @@ export const settingsAPI = {
   getAll: () => api.get('/api/settings'),
   updateRetention: (days) => api.put('/api/settings/retention', { retention_days: days }),
   updateOpenAI: (settings) => api.put('/api/settings/openai', settings),
-  getDefaultPrompt: () => api.get('/api/settings/openai/default-prompt')
+  getDefaultPrompt: () => api.get('/api/settings/openai/default-prompt'),
+  updateNotifications: (settings) => api.put('/api/settings/notifications', settings)
 };
 
 // Analysis API
