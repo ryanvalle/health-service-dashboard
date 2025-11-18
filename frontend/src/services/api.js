@@ -34,7 +34,15 @@ export const endpointsAPI = {
 // Settings API
 export const settingsAPI = {
   getAll: () => api.get('/api/settings'),
-  updateRetention: (days) => api.put('/api/settings/retention', { retention_days: days })
+  updateRetention: (days) => api.put('/api/settings/retention', { retention_days: days }),
+  updateOpenAI: (settings) => api.put('/api/settings/openai', settings),
+  getDefaultPrompt: () => api.get('/api/settings/openai/default-prompt')
+};
+
+// Analysis API
+export const analysisAPI = {
+  analyzeCheckResult: (endpointId, checkResultId) => 
+    api.post(`/api/endpoints/${endpointId}/check-results/${checkResultId}/analyze`)
 };
 
 export default api;

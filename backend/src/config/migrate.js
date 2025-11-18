@@ -98,6 +98,33 @@ async function migrate() {
     `);
     console.log('[MIGRATE] Default retention set');
 
+    // Add OpenAI settings
+    console.log('[MIGRATE] Setting OpenAI defaults...');
+    await db.run(`
+      INSERT OR IGNORE INTO settings (key, value) 
+      VALUES 
+        ('openai_enabled', 'false'),
+        ('openai_api_key', ''),
+        ('openai_response_limit', '1000'),
+        ('openai_custom_prompt', '')
+    `);
+    console.log('[MIGRATE] OpenAI defaults set');
+
+    // Add analysis columns to check_results if they don't exist
+    try {
+      await db.run(`ALTER TABLE check_results ADD COLUMN ai_analysis TEXT`);
+      console.log('[MIGRATE] Added ai_analysis column');
+    } catch (err) {
+      console.log('[MIGRATE] ai_analysis column already exists or error:', err.message);
+    }
+
+    try {
+      await db.run(`ALTER TABLE check_results ADD COLUMN analyzed_at DATETIME`);
+      console.log('[MIGRATE] Added analyzed_at column');
+    } catch (err) {
+      console.log('[MIGRATE] analyzed_at column already exists or error:', err.message);
+    }
+
     console.log('[MIGRATE] Database migration completed successfully');
   } catch (error) {
     console.error('[MIGRATE] Migration failed:', error);

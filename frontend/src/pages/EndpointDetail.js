@@ -1,9 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { endpointsAPI } from '../services/api';
+import { endpointsAPI, analysisAPI, settingsAPI } from '../services/api';
 import { useTimezone } from '../context/TimezoneContext';
 import { formatTimestamp, formatRelativeTime, calculateNextCheckTime, formatChartTimestamp } from '../utils/dateUtils';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
+
+// Configure marked for security
+marked.setOptions({
+  breaks: true,
+  gfm: true,
+  headerIds: false,
+  mangle: false
+});
 
 function EndpointDetail() {
   const { id } = useParams();
@@ -13,11 +23,14 @@ function EndpointDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [checking, setChecking] = useState(false);
+  const [analyzingCheckId, setAnalyzingCheckId] = useState(null);
+  const [openAIEnabled, setOpenAIEnabled] = useState(false);
   const { effectiveTimezone } = useTimezone();
 
   useEffect(() => {
     fetchEndpoint();
     fetchHistory();
+    fetchOpenAISettings();
     const interval = setInterval(() => {
       fetchEndpoint();
       fetchHistory();
@@ -46,6 +59,15 @@ function EndpointDetail() {
     }
   };
 
+  const fetchOpenAISettings = async () => {
+    try {
+      const response = await settingsAPI.getAll();
+      setOpenAIEnabled(response.data.openai_enabled === 'true');
+    } catch (err) {
+      console.error('Failed to load OpenAI settings:', err);
+    }
+  };
+
   const handleCheckNow = async () => {
     setChecking(true);
     try {
@@ -59,6 +81,26 @@ function EndpointDetail() {
     } catch (err) {
       console.error('Failed to trigger check:', err);
       setChecking(false);
+    }
+  };
+
+  const handleAnalyze = async (checkId) => {
+    setAnalyzingCheckId(checkId);
+    try {
+      const response = await analysisAPI.analyzeCheckResult(id, checkId);
+      // Update the history with the new analysis
+      setHistory(prevHistory =>
+        prevHistory.map(check =>
+          check.id === checkId
+            ? { ...check, ai_analysis: response.data.analysis, analyzed_at: response.data.analyzed_at }
+            : check
+        )
+      );
+    } catch (err) {
+      console.error('Failed to analyze check result:', err);
+      alert(err.response?.data?.error || 'Failed to analyze check result. Make sure OpenAI is configured in Settings.');
+    } finally {
+      setAnalyzingCheckId(null);
     }
   };
 
@@ -313,6 +355,61 @@ function EndpointDetail() {
                       {check.response_body.substring(0, 500)}
                       {check.response_body.length > 500 && '...'}
                     </div>
+                  </div>
+                )}
+                
+                {/* AI Analysis Section - Only show for unhealthy checks and when OpenAI is enabled */}
+                {!check.is_healthy && openAIEnabled && (
+                  <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #dee2e6' }}>
+                    {check.ai_analysis ? (
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                          <strong style={{ color: '#2c3e50' }}>🤖 Health-AI Analysis:</strong>
+                          <button
+                            onClick={() => handleAnalyze(check.id)}
+                            disabled={analyzingCheckId === check.id}
+                            className="btn btn-primary"
+                            style={{ 
+                              padding: '0.35rem 0.75rem',
+                              fontSize: '0.85rem'
+                            }}
+                          >
+                            {analyzingCheckId === check.id ? '🔄 Re-analyzing...' : '🔄 Re-analyze'}
+                          </button>
+                        </div>
+                        <div 
+                          style={{ 
+                            background: '#f8f9fa', 
+                            padding: '1rem', 
+                            borderRadius: '4px',
+                            fontSize: '0.9rem',
+                            color: '#495057',
+                            lineHeight: '1.6'
+                          }}
+                          dangerouslySetInnerHTML={{ 
+                            __html: DOMPurify.sanitize(marked(check.ai_analysis)) 
+                          }}
+                        />
+                        {check.analyzed_at && (
+                          <div style={{ fontSize: '0.8rem', color: '#6c757d', marginTop: '0.5rem' }}>
+                            Analyzed {formatRelativeTime(check.analyzed_at)}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => handleAnalyze(check.id)}
+                        disabled={analyzingCheckId === check.id}
+                        className="btn btn-primary"
+                        style={{ 
+                          padding: '0.5rem 1rem',
+                          fontSize: '0.9rem',
+                          width: '100%'
+                        }}
+                      >
+                        {analyzingCheckId === check.id ? '🔄 Analyzing...' : '🤖 Why is it unhealth-AI?'}
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

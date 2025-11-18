@@ -506,6 +506,51 @@ body {
   border: 1px solid #f5c6cb;
 }
 
+/* AI Analysis Markdown Styles */
+.history-item ul,
+.history-item ol {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+}
+
+.history-item li {
+  margin: 0.25rem 0;
+  padding-left: 0;
+}
+
+.history-item p {
+  margin: 0.5rem 0;
+}
+
+.history-item h1,
+.history-item h2,
+.history-item h3,
+.history-item h4 {
+  margin: 1rem 0 0.5rem 0;
+  padding: 0;
+}
+
+.history-item code {
+  background: #e9ecef;
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  font-family: monospace;
+  font-size: 0.9em;
+}
+
+.history-item pre {
+  background: #e9ecef;
+  padding: 0.75rem;
+  border-radius: 4px;
+  overflow-x: auto;
+  margin: 0.5rem 0;
+}
+
+.history-item pre code {
+  background: none;
+  padding: 0;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .nav-container {
