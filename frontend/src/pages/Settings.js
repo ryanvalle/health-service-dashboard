@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { settingsAPI } from '../services/api';
+import { useTimezone } from '../context/TimezoneContext';
+import { getTimezoneOptions, getSystemTimezone } from '../utils/dateUtils';
 
 function Settings() {
   const [retentionDays, setRetentionDays] = useState(30);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
+  const { timezone, setTimezone } = useTimezone();
+  const timezoneOptions = getTimezoneOptions();
 
   // Get API docs URL based on environment
   const getAPIDocsURL = () => {
@@ -47,6 +51,11 @@ function Settings() {
     }
   };
 
+  const handleTimezoneChange = (e) => {
+    setTimezone(e.target.value);
+    setMessage({ type: 'success', text: 'Timezone preference saved!' });
+  };
+
   if (loading) {
     return <div className="loading">Loading settings...</div>;
   }
@@ -69,6 +78,25 @@ function Settings() {
       )}
 
       <form onSubmit={handleSubmit}>
+        <div className="form-group">
+          <label className="form-label">Timezone Preference</label>
+          <select
+            className="form-input"
+            value={timezone}
+            onChange={handleTimezoneChange}
+          >
+            {timezoneOptions.map(option => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <span className="form-hint">
+            Select your preferred timezone for displaying timestamps. 
+            Currently using: <strong>{timezone === 'auto' ? getSystemTimezone() : timezone}</strong>
+          </span>
+        </div>
+
         <div className="form-group">
           <label className="form-label">Data Retention Period (days)</label>
           <input
