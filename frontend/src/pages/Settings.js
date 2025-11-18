@@ -198,7 +198,17 @@ function Settings() {
               disabled={!openAIEnabled}
             />
             <span className="form-hint">
-              Your OpenAI API key. Get one from <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">OpenAI Platform</a>
+              Your OpenAI API key. Get one from <a 
+                href="https://platform.openai.com/api-keys" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                onClick={(e) => {
+                  if (window.electron && window.electron.isElectron) {
+                    e.preventDefault();
+                    window.electron.openExternal('https://platform.openai.com/api-keys');
+                  }
+                }}
+              >OpenAI Platform</a>
             </span>
           </div>
 
@@ -270,7 +280,7 @@ function Settings() {
           </div>
 
           <div className="form-actions">
-            <button type="submit" className="btn btn-primary" disabled={savingOpenAI || !openAIEnabled}>
+            <button type="submit" className="btn btn-primary" disabled={savingOpenAI}>
               {savingOpenAI ? 'Saving...' : 'Save OpenAI Settings'}
             </button>
           </div>
