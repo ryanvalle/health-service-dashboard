@@ -31,7 +31,12 @@ function Dashboard() {
 
   const getStatusText = (endpoint) => {
     if (!endpoint.latest_check) return 'unknown';
-    return endpoint.latest_check.is_healthy ? 'healthy' : 'unhealthy';
+    
+    // Determine status based on uptime threshold
+    const uptimePercent = parseFloat(endpoint.stats_7d?.uptime_percentage) || 0;
+    const uptimeThreshold = endpoint.uptime_threshold || 90;
+    
+    return uptimePercent >= uptimeThreshold ? 'healthy' : 'unhealthy';
   };
 
   const filteredEndpoints = endpoints.filter(endpoint => {
@@ -116,7 +121,15 @@ function Dashboard() {
                 <div className="endpoint-stats">
                   <div className="stat-item">
                     <span className="stat-label">Uptime (7d)</span>
-                    <span className="stat-value">
+                    <span 
+                      className="stat-value"
+                      style={{ 
+                        color: (endpoint.stats_7d?.uptime_percentage || 0) >= (endpoint.uptime_threshold || 90) 
+                          ? '#2ecc71' 
+                          : '#e74c3c',
+                        fontWeight: 'bold'
+                      }}
+                    >
                       {endpoint.stats_7d?.uptime_percentage || 0}%
                     </span>
                   </div>
