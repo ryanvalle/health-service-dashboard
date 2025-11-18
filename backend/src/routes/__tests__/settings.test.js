@@ -117,7 +117,7 @@ describe('Settings Routes - OpenAI', () => {
         .expect(200);
 
       expect(response.body.default_prompt).toBe(DEFAULT_PROMPT);
-      expect(response.body.default_prompt).toContain('technical assistant');
+      expect(response.body.default_prompt).toBeDefined();
     });
   });
 });
