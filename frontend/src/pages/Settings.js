@@ -101,9 +101,12 @@ function Settings() {
         <p style={{ marginBottom: '0.5rem', color: '#7f8c8d' }}>
           Monitor your services with automated health checks and detailed reporting.
         </p>
-        <p style={{ color: '#7f8c8d' }}>
-          API Documentation available at: <a href={getAPIDocsURL()} target="_blank" rel="noopener noreferrer">Open API Docs</a>
-        </p>
+        {/* Hide API Documentation link in Electron builds */}
+        {!(window.electron && window.electron.isElectron) && (
+          <p style={{ color: '#7f8c8d' }}>
+            API Documentation available at: <a href={getAPIDocsURL()} target="_blank" rel="noopener noreferrer">Open API Docs</a>
+          </p>
+        )}
       </div>
     </div>
   );

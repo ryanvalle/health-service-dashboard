@@ -9,7 +9,7 @@
     "prebuild": "npm run build:frontend && npm run build:backend",
     "build": "npm run build:frontend && npm run build:backend",
     "build:frontend": "cd frontend && npm run build",
-    "build:backend": "cd backend && npm install --production=false",
+    "build:backend": "cd backend && npm install --omit=dev --omit=optional --ignore-scripts && npm rebuild sqlite3",
     "package": "npm run prebuild && electron-builder",
     "package:all": "npm run prebuild && electron-builder -mwl",
     "package:win": "npm run prebuild && electron-builder --win",
@@ -26,13 +26,45 @@
       "electron/**/*",
       "frontend/build/**/*",
       "backend/**/*",
-      "!backend/data/**/*"
+      "!backend/data/**/*",
+      "!backend/node_modules/**/test/**",
+      "!backend/node_modules/**/tests/**",
+      "!backend/node_modules/**/*.md",
+      "!backend/node_modules/**/*.ts",
+      "!backend/node_modules/**/*.map",
+      "!backend/node_modules/**/LICENSE",
+      "!backend/node_modules/**/README",
+      "!backend/node_modules/**/CHANGELOG*",
+      "!backend/node_modules/**/.github/**",
+      "!backend/node_modules/**/docs/**",
+      "!backend/node_modules/**/examples/**"
     ],
     "extraResources": [
       {
         "from": "backend",
         "to": "backend",
-        "filter": ["**/*", "!data/**/*"]
+        "filter": [
+          "**/*",
+          "!data/**/*",
+          "!node_modules/**/test/**",
+          "!node_modules/**/tests/**",
+          "!node_modules/**/*.md",
+          "!node_modules/**/*.ts",
+          "!node_modules/**/*.map",
+          "!node_modules/**/LICENSE",
+          "!node_modules/**/README",
+          "!node_modules/**/CHANGELOG*",
+          "!node_modules/**/.github/**",
+          "!node_modules/**/docs/**",
+          "!node_modules/**/examples/**",
+          "!node_modules/swagger-ui-dist/**",
+          "!node_modules/swagger-jsdoc/**",
+          "!node_modules/swagger-ui-express/**",
+          "!node_modules/node-gyp/**",
+          "!node_modules/**/gyp/**",
+          "!node_modules/**/build/config.gypi",
+          "!node_modules/**/deps/**"
+        ]
       }
     ],
     "asarUnpack": [
