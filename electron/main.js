@@ -139,6 +139,24 @@ function createWindow() {
       ]
     },
     {
+      label: 'Window',
+      submenu: [
+        { role: 'minimize' },
+        { role: 'close' },
+        {
+          label: 'Bring to Front',
+          accelerator: 'CommandOrControl+1',
+          click: () => {
+            if (mainWindow) {
+              if (mainWindow.isMinimized()) mainWindow.restore();
+              mainWindow.show();
+              mainWindow.focus();
+            }
+          }
+        }
+      ]
+    },
+    {
       label: 'Help',
       submenu: [
         {
