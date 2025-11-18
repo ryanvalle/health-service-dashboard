@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { endpointsAPI, analysisAPI } from '../services/api';
+import { endpointsAPI, analysisAPI, settingsAPI } from '../services/api';
 import { useTimezone } from '../context/TimezoneContext';
 import { formatTimestamp, formatRelativeTime, calculateNextCheckTime, formatChartTimestamp } from '../utils/dateUtils';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -24,11 +24,13 @@ function EndpointDetail() {
   const [error, setError] = useState(null);
   const [checking, setChecking] = useState(false);
   const [analyzingCheckId, setAnalyzingCheckId] = useState(null);
+  const [openAIEnabled, setOpenAIEnabled] = useState(false);
   const { effectiveTimezone } = useTimezone();
 
   useEffect(() => {
     fetchEndpoint();
     fetchHistory();
+    fetchOpenAISettings();
     const interval = setInterval(() => {
       fetchEndpoint();
       fetchHistory();
@@ -54,6 +56,15 @@ function EndpointDetail() {
       setHistory(response.data);
     } catch (err) {
       console.error('Failed to load history:', err);
+    }
+  };
+
+  const fetchOpenAISettings = async () => {
+    try {
+      const response = await settingsAPI.getAll();
+      setOpenAIEnabled(response.data.openai_enabled === 'true');
+    } catch (err) {
+      console.error('Failed to load OpenAI settings:', err);
     }
   };
 
@@ -347,8 +358,8 @@ function EndpointDetail() {
                   </div>
                 )}
                 
-                {/* AI Analysis Section - Only show for unhealthy checks */}
-                {!check.is_healthy && (
+                {/* AI Analysis Section - Only show for unhealthy checks and when OpenAI is enabled */}
+                {!check.is_healthy && openAIEnabled && (
                   <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #dee2e6' }}>
                     {check.ai_analysis ? (
                       <div>
