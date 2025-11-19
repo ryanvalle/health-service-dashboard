@@ -10,6 +10,7 @@ function Dashboard() {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState('all');
+  const [selectedTag, setSelectedTag] = useState('');
   const { effectiveTimezone } = useTimezone();
 
   useEffect(() => {
@@ -39,12 +40,24 @@ function Dashboard() {
     return uptimePercent >= uptimeThreshold ? 'healthy' : 'unhealthy';
   };
 
+  const getAllTags = () => {
+    const tagsSet = new Set();
+    endpoints.forEach(endpoint => {
+      if (endpoint.tags && Array.isArray(endpoint.tags)) {
+        endpoint.tags.forEach(tag => tagsSet.add(tag));
+      }
+    });
+    return Array.from(tagsSet).sort();
+  };
+
   const filteredEndpoints = endpoints.filter(endpoint => {
     const matchesSearch = endpoint.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          endpoint.url.toLowerCase().includes(searchTerm.toLowerCase());
     
-    if (filter === 'all') return matchesSearch;
-    return matchesSearch && getStatusText(endpoint) === filter;
+    const matchesTag = !selectedTag || (endpoint.tags && endpoint.tags.includes(selectedTag));
+    
+    if (filter === 'all') return matchesSearch && matchesTag;
+    return matchesSearch && matchesTag && getStatusText(endpoint) === filter;
   });
 
   if (loading) {
@@ -77,6 +90,17 @@ function Dashboard() {
             <option value="healthy">Healthy</option>
             <option value="unhealthy">Unhealthy</option>
             <option value="unknown">Unknown</option>
+          </select>
+          <select 
+            className="form-select" 
+            value={selectedTag} 
+            onChange={(e) => setSelectedTag(e.target.value)}
+            style={{ width: 'auto', padding: '0.5rem 1rem' }}
+          >
+            <option value="">All Tags</option>
+            {getAllTags().map(tag => (
+              <option key={tag} value={tag}>{tag}</option>
+            ))}
           </select>
           <Link to="/endpoints/new" className="btn btn-primary">
             + Add Endpoint
@@ -112,6 +136,27 @@ function Dashboard() {
                   <div className="endpoint-info">
                     <h3>{endpoint.name}</h3>
                     <p className="endpoint-url">{endpoint.method} {endpoint.url}</p>
+                    {endpoint.tags && endpoint.tags.length > 0 && (
+                      <div style={{ marginTop: '0.5rem' }}>
+                        {endpoint.tags.map(tag => (
+                          <span 
+                            key={tag} 
+                            style={{ 
+                              display: 'inline-block',
+                              backgroundColor: '#e0e7ff',
+                              color: '#4c51bf',
+                              padding: '0.25rem 0.5rem',
+                              borderRadius: '0.25rem',
+                              fontSize: '0.75rem',
+                              marginRight: '0.25rem',
+                              marginBottom: '0.25rem'
+                            }}
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <span className={`status-badge status-${getStatusText(endpoint)}`}>
                     {getStatusText(endpoint)}

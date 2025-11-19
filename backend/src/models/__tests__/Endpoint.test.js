@@ -183,5 +183,39 @@ describe('Endpoint', () => {
       expect(parsed.created_at).toBe('2023-01-01 00:00:00');
       expect(parsed.updated_at).toBe('2023-01-02 00:00:00');
     });
+
+    it('should parse tags when present', () => {
+      const rawEndpoint = {
+        id: '123',
+        name: 'Test Endpoint',
+        url: 'https://api.example.com/health',
+        method: 'GET',
+        headers: '{}',
+        expected_status_codes: '[200]',
+        json_path_assertions: '[]',
+        tags: '["production", "api", "critical"]',
+        is_active: 1
+      };
+
+      const parsed = Endpoint.parse(rawEndpoint);
+      expect(parsed.tags).toEqual(['production', 'api', 'critical']);
+    });
+
+    it('should handle missing tags with default empty array', () => {
+      const rawEndpoint = {
+        id: '123',
+        name: 'Test Endpoint',
+        url: 'https://api.example.com/health',
+        method: 'GET',
+        headers: '{}',
+        expected_status_codes: '[200]',
+        json_path_assertions: '[]',
+        tags: null,
+        is_active: 1
+      };
+
+      const parsed = Endpoint.parse(rawEndpoint);
+      expect(parsed.tags).toEqual([]);
+    });
   });
 });

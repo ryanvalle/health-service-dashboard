@@ -15,6 +15,7 @@ class Endpoint {
       cron_schedule,
       timeout = 30000,
       uptime_threshold = 90,
+      tags = [],
       is_active = 1
     } = data;
 
@@ -25,8 +26,8 @@ class Endpoint {
       `INSERT INTO endpoints (
         id, name, url, method, headers, expected_status_codes, 
         json_path_assertions, response_time_threshold, check_frequency, 
-        cron_schedule, timeout, uptime_threshold, is_active
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        cron_schedule, timeout, uptime_threshold, tags, is_active
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         name,
@@ -40,6 +41,7 @@ class Endpoint {
         cron_schedule,
         timeout,
         uptime_threshold,
+        JSON.stringify(tags),
         is_active
       ]
     );
@@ -89,6 +91,10 @@ class Endpoint {
       fields.push('json_path_assertions = ?');
       values.push(JSON.stringify(data.json_path_assertions));
     }
+    if (data.tags !== undefined) {
+      fields.push('tags = ?');
+      values.push(JSON.stringify(data.tags));
+    }
 
     if (fields.length === 0) {
       return this.findById(id);
@@ -122,6 +128,7 @@ class Endpoint {
       json_path_assertions: endpoint.json_path_assertions 
         ? JSON.parse(endpoint.json_path_assertions) 
         : [],
+      tags: endpoint.tags ? JSON.parse(endpoint.tags) : [],
       is_active: Boolean(endpoint.is_active)
     };
   }
