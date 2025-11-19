@@ -217,5 +217,39 @@ describe('Endpoint', () => {
       const parsed = Endpoint.parse(rawEndpoint);
       expect(parsed.tags).toEqual([]);
     });
+
+    it('should parse folder when present', () => {
+      const rawEndpoint = {
+        id: '123',
+        name: 'Test Endpoint',
+        url: 'https://api.example.com/health',
+        method: 'GET',
+        headers: '{}',
+        expected_status_codes: '[200]',
+        json_path_assertions: '[]',
+        folder: 'CDN',
+        is_active: 1
+      };
+
+      const parsed = Endpoint.parse(rawEndpoint);
+      expect(parsed.folder).toBe('CDN');
+    });
+
+    it('should handle null folder', () => {
+      const rawEndpoint = {
+        id: '123',
+        name: 'Test Endpoint',
+        url: 'https://api.example.com/health',
+        method: 'GET',
+        headers: '{}',
+        expected_status_codes: '[200]',
+        json_path_assertions: '[]',
+        folder: null,
+        is_active: 1
+      };
+
+      const parsed = Endpoint.parse(rawEndpoint);
+      expect(parsed.folder).toBeNull();
+    });
   });
 });

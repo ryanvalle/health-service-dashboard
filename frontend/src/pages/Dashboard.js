@@ -12,6 +12,7 @@ function Dashboard() {
   const [filter, setFilter] = useState('all');
   const [selectedTags, setSelectedTags] = useState([]);
   const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false);
+  const [expandedFolders, setExpandedFolders] = useState({});
   const tagDropdownRef = useRef(null);
   const { effectiveTimezone } = useTimezone();
 
@@ -86,6 +87,28 @@ function Dashboard() {
     setSelectedTags([]);
   };
 
+  const toggleFolder = (folderName) => {
+    setExpandedFolders(prev => ({
+      ...prev,
+      [folderName]: !prev[folderName]
+    }));
+  };
+
+  const groupEndpointsByFolder = (endpoints) => {
+    const grouped = {};
+    const NO_FOLDER = '__no_folder__';
+    
+    endpoints.forEach(endpoint => {
+      const folder = endpoint.folder || NO_FOLDER;
+      if (!grouped[folder]) {
+        grouped[folder] = [];
+      }
+      grouped[folder].push(endpoint);
+    });
+    
+    return grouped;
+  };
+
   const filteredEndpoints = endpoints.filter(endpoint => {
     const matchesSearch = endpoint.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          endpoint.url.toLowerCase().includes(searchTerm.toLowerCase());
@@ -96,6 +119,8 @@ function Dashboard() {
     if (filter === 'all') return matchesSearch && matchesTag;
     return matchesSearch && matchesTag && getStatusText(endpoint) === filter;
   });
+
+  const groupedEndpoints = groupEndpointsByFolder(filteredEndpoints);
 
   if (loading) {
     return <div className="loading">Loading endpoints...</div>;
@@ -255,87 +280,157 @@ function Dashboard() {
           )}
         </div>
       ) : (
-        <div className="endpoints-grid">
-          {filteredEndpoints.map(endpoint => (
-            <Link 
-              key={endpoint.id} 
-              to={`/endpoints/${endpoint.id}`}
-              style={{ textDecoration: 'none' }}
-            >
-              <div className="endpoint-card">
-                <div className="endpoint-header">
-                  <div className="endpoint-info">
-                    <h3>{endpoint.name}</h3>
-                    <p className="endpoint-url">{endpoint.method} {endpoint.url}</p>
-                    {endpoint.tags && endpoint.tags.length > 0 && (
-                      <div style={{ marginTop: '0.5rem' }}>
-                        {endpoint.tags.map(tag => (
-                          <span 
-                            key={tag} 
-                            style={{ 
-                              display: 'inline-block',
-                              backgroundColor: '#e0e7ff',
-                              color: '#4c51bf',
-                              padding: '0.25rem 0.5rem',
-                              borderRadius: '0.25rem',
-                              fontSize: '0.75rem',
-                              marginRight: '0.25rem',
-                              marginBottom: '0.25rem'
-                            }}
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <span className={`status-badge status-${getStatusText(endpoint)}`}>
-                    {getStatusText(endpoint)}
+        <div>
+          {Object.entries(groupedEndpoints)
+            .sort(([folderA], [folderB]) => {
+              const NO_FOLDER = '__no_folder__';
+              // Keep "Ungrouped Endpoints" at the end
+              if (folderA === NO_FOLDER) return 1;
+              if (folderB === NO_FOLDER) return -1;
+              // Sort other folders alphabetically
+              return folderA.localeCompare(folderB);
+            })
+            .map(([folderName, folderEndpoints]) => {
+            const NO_FOLDER = '__no_folder__';
+            const isNoFolder = folderName === NO_FOLDER;
+            const displayName = isNoFolder ? 'Ungrouped Endpoints' : folderName;
+            const isExpanded = expandedFolders[folderName] !== false; // Default to expanded
+            
+            return (
+              <div key={folderName} style={{ marginBottom: '1.5rem' }}>
+                <div 
+                  onClick={() => toggleFolder(folderName)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '1rem',
+                    backgroundColor: '#f8f9fa',
+                    border: '1px solid #dee2e6',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    marginBottom: '0.5rem',
+                    transition: 'background-color 0.2s',
+                    userSelect: 'none'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#e9ecef'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+                >
+                  <span style={{ 
+                    marginRight: '0.75rem', 
+                    fontSize: '1.2rem',
+                    transition: 'transform 0.2s',
+                    transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                    display: 'inline-block'
+                  }}>
+                    ▶
+                  </span>
+                  <h2 style={{ 
+                    margin: 0, 
+                    fontSize: '1.25rem', 
+                    color: '#2c3e50',
+                    flex: 1
+                  }}>
+                    {displayName}
+                  </h2>
+                  <span style={{
+                    backgroundColor: '#6c757d',
+                    color: 'white',
+                    padding: '0.25rem 0.75rem',
+                    borderRadius: '12px',
+                    fontSize: '0.875rem',
+                    fontWeight: '600'
+                  }}>
+                    {folderEndpoints.length}
                   </span>
                 </div>
+                
+                {isExpanded && (
+                  <div className="endpoints-grid">
+                    {folderEndpoints.map(endpoint => (
+                      <Link 
+                        key={endpoint.id} 
+                        to={`/endpoints/${endpoint.id}`}
+                        style={{ textDecoration: 'none' }}
+                      >
+                        <div className="endpoint-card">
+                          <div className="endpoint-header">
+                            <div className="endpoint-info">
+                              <h3>{endpoint.name}</h3>
+                              <p className="endpoint-url">{endpoint.method} {endpoint.url}</p>
+                              {endpoint.tags && endpoint.tags.length > 0 && (
+                                <div style={{ marginTop: '0.5rem' }}>
+                                  {endpoint.tags.map(tag => (
+                                    <span 
+                                      key={tag} 
+                                      style={{ 
+                                        display: 'inline-block',
+                                        backgroundColor: '#e0e7ff',
+                                        color: '#4c51bf',
+                                        padding: '0.25rem 0.5rem',
+                                        borderRadius: '0.25rem',
+                                        fontSize: '0.75rem',
+                                        marginRight: '0.25rem',
+                                        marginBottom: '0.25rem'
+                                      }}
+                                    >
+                                      {tag}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            <span className={`status-badge status-${getStatusText(endpoint)}`}>
+                              {getStatusText(endpoint)}
+                            </span>
+                          </div>
 
-                <div className="endpoint-stats">
-                  <div className="stat-item">
-                    <span className="stat-label">Uptime (7d)</span>
-                    <span 
-                      className="stat-value"
-                      style={{ 
-                        color: (endpoint.stats_7d?.uptime_percentage || 0) >= (endpoint.uptime_threshold || 90) 
-                          ? '#2ecc71' 
-                          : '#e74c3c',
-                        fontWeight: 'bold'
-                      }}
-                    >
-                      {endpoint.stats_7d?.uptime_percentage || 0}%
-                    </span>
+                          <div className="endpoint-stats">
+                            <div className="stat-item">
+                              <span className="stat-label">Uptime (7d)</span>
+                              <span 
+                                className="stat-value"
+                                style={{ 
+                                  color: (endpoint.stats_7d?.uptime_percentage || 0) >= (endpoint.uptime_threshold || 90) 
+                                    ? '#2ecc71' 
+                                    : '#e74c3c',
+                                  fontWeight: 'bold'
+                                }}
+                              >
+                                {endpoint.stats_7d?.uptime_percentage || 0}%
+                              </span>
+                            </div>
+                            <div className="stat-item">
+                              <span className="stat-label">Avg Response</span>
+                              <span className="stat-value">
+                                {endpoint.stats_7d?.avg_response_time || 0}ms
+                              </span>
+                            </div>
+                            <div className="stat-item">
+                              <span className="stat-label">Total Checks</span>
+                              <span className="stat-value">
+                                {endpoint.stats_7d?.total_checks || 0}
+                              </span>
+                            </div>
+                            <div className="stat-item">
+                              <span className="stat-label">Last Check</span>
+                              <span className="stat-value">
+                                {endpoint.latest_check 
+                                  ? formatTimestamp(endpoint.latest_check.timestamp, { 
+                                      timezone: effectiveTimezone, 
+                                      format: 'time' 
+                                    })
+                                  : 'Never'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
                   </div>
-                  <div className="stat-item">
-                    <span className="stat-label">Avg Response</span>
-                    <span className="stat-value">
-                      {endpoint.stats_7d?.avg_response_time || 0}ms
-                    </span>
-                  </div>
-                  <div className="stat-item">
-                    <span className="stat-label">Total Checks</span>
-                    <span className="stat-value">
-                      {endpoint.stats_7d?.total_checks || 0}
-                    </span>
-                  </div>
-                  <div className="stat-item">
-                    <span className="stat-label">Last Check</span>
-                    <span className="stat-value">
-                      {endpoint.latest_check 
-                        ? formatTimestamp(endpoint.latest_check.timestamp, { 
-                            timezone: effectiveTimezone, 
-                            format: 'time' 
-                          })
-                        : 'Never'}
-                    </span>
-                  </div>
-                </div>
+                )}
               </div>
-            </Link>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
