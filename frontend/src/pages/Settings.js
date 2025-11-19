@@ -20,6 +20,12 @@ function Settings() {
   const [showDefaultPrompt, setShowDefaultPrompt] = useState(false);
   const [savingOpenAI, setSavingOpenAI] = useState(false);
 
+  // Notification settings
+  const [resendEnabled, setResendEnabled] = useState(false);
+  const [resendApiKey, setResendApiKey] = useState('');
+  const [notificationEmail, setNotificationEmail] = useState('');
+  const [savingNotifications, setSavingNotifications] = useState(false);
+
   // Get API docs URL based on environment
   const getAPIDocsURL = () => {
     // Check if running in Electron
@@ -43,6 +49,9 @@ function Settings() {
       setOpenAIApiKey(response.data.openai_api_key || '');
       setOpenAIResponseLimit(parseInt(response.data.openai_response_limit) || 1000);
       setOpenAICustomPrompt(response.data.openai_custom_prompt || '');
+      setResendEnabled(response.data.resend_enabled === 'true');
+      setResendApiKey(response.data.resend_api_key || '');
+      setNotificationEmail(response.data.notification_email || '');
       setLoading(false);
     } catch (err) {
       console.error('Failed to load settings:', err);
@@ -91,6 +100,25 @@ function Settings() {
       setMessage({ type: 'error', text: 'Failed to update OpenAI settings' });
     } finally {
       setSavingOpenAI(false);
+    }
+  };
+
+  const handleNotificationsSubmit = async (e) => {
+    e.preventDefault();
+    setSavingNotifications(true);
+    setMessage(null);
+
+    try {
+      await settingsAPI.updateNotifications({
+        resend_enabled: resendEnabled,
+        resend_api_key: resendApiKey,
+        notification_email: notificationEmail
+      });
+      setMessage({ type: 'success', text: 'Notification settings updated successfully!' });
+    } catch (err) {
+      setMessage({ type: 'error', text: 'Failed to update notification settings' });
+    } finally {
+      setSavingNotifications(false);
     }
   };
 
@@ -282,6 +310,86 @@ function Settings() {
           <div className="form-actions">
             <button type="submit" className="btn btn-primary" disabled={savingOpenAI}>
               {savingOpenAI ? 'Saving...' : 'Save OpenAI Settings'}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div style={{ marginTop: '3rem', padding: '1.5rem', background: '#f8f9fa', borderRadius: '8px' }}>
+        <h2 style={{ marginBottom: '1.5rem', fontSize: '1.5rem', color: '#2c3e50' }}>Email Notifications</h2>
+        <p style={{ marginBottom: '1.5rem', color: '#7f8c8d' }}>
+          Get email notifications when health checks fail. Powered by <a 
+            href="https://resend.com" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            onClick={(e) => {
+              if (window.electron && window.electron.isElectron) {
+                e.preventDefault();
+                window.electron.openExternal('https://resend.com');
+              }
+            }}
+          >Resend</a>.
+        </p>
+
+        <form onSubmit={handleNotificationsSubmit}>
+          <div className="form-group">
+            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={resendEnabled}
+                onChange={(e) => setResendEnabled(e.target.checked)}
+                style={{ marginRight: '0.5rem', width: '18px', height: '18px', cursor: 'pointer' }}
+              />
+              <span className="form-label" style={{ marginBottom: 0 }}>Enable Email Notifications</span>
+            </label>
+            <span className="form-hint">
+              Send email notifications when health checks fail
+            </span>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Resend API Key</label>
+            <input
+              type="password"
+              className="form-input"
+              value={resendApiKey}
+              onChange={(e) => setResendApiKey(e.target.value)}
+              placeholder="re_..."
+              disabled={!resendEnabled}
+            />
+            <span className="form-hint">
+              Your Resend API key. Get one from <a 
+                href="https://resend.com/api-keys" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                onClick={(e) => {
+                  if (window.electron && window.electron.isElectron) {
+                    e.preventDefault();
+                    window.electron.openExternal('https://resend.com/api-keys');
+                  }
+                }}
+              >Resend Dashboard</a>
+            </span>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Notification Email</label>
+            <input
+              type="email"
+              className="form-input"
+              value={notificationEmail}
+              onChange={(e) => setNotificationEmail(e.target.value)}
+              placeholder="alerts@example.com"
+              disabled={!resendEnabled}
+            />
+            <span className="form-hint">
+              Email address to receive failure notifications
+            </span>
+          </div>
+
+          <div className="form-actions">
+            <button type="submit" className="btn btn-primary" disabled={savingNotifications}>
+              {savingNotifications ? 'Saving...' : 'Save Notification Settings'}
             </button>
           </div>
         </form>

@@ -128,6 +128,17 @@ async function migrate() {
     `);
     console.log('[MIGRATE] OpenAI defaults set');
 
+    // Add Resend notification settings
+    console.log('[MIGRATE] Setting Resend notification defaults...');
+    await db.run(`
+      INSERT OR IGNORE INTO settings (key, value) 
+      VALUES 
+        ('resend_enabled', 'false'),
+        ('resend_api_key', ''),
+        ('notification_email', '')
+    `);
+    console.log('[MIGRATE] Resend notification defaults set');
+
     // Add analysis columns to check_results if they don't exist
     try {
       await db.run(`ALTER TABLE check_results ADD COLUMN ai_analysis TEXT`);
