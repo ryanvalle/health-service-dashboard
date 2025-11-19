@@ -20,6 +20,7 @@ function EndpointForm() {
     timeout: '30000',
     uptime_threshold: '90',
     tags: '',
+    folder: '',
     is_active: true
   });
 
@@ -54,6 +55,7 @@ function EndpointForm() {
         timeout: endpoint.timeout,
         uptime_threshold: endpoint.uptime_threshold || '90',
         tags: (endpoint.tags || []).join(', '),
+        folder: endpoint.folder || '',
         is_active: endpoint.is_active
       });
     } catch (err) {
@@ -185,6 +187,11 @@ function EndpointForm() {
           .filter(tag => tag.length > 0);
       }
 
+      // Folder
+      if (formData.folder.trim()) {
+        data.folder = formData.folder.trim();
+      }
+
       // Scheduling
       if (formData.cron_schedule.trim()) {
         data.cron_schedule = formData.cron_schedule;
@@ -236,6 +243,19 @@ function EndpointForm() {
             placeholder="production, api, critical"
           />
           <span className="form-hint">Comma-separated list of tags to categorize this endpoint</span>
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">Folder</label>
+          <input
+            type="text"
+            name="folder"
+            className="form-input"
+            value={formData.folder}
+            onChange={handleChange}
+            placeholder="CDN, Social, etc."
+          />
+          <span className="form-hint">Optional folder to organize this endpoint (e.g., CDN for Akamai/Cloudflare)</span>
         </div>
 
         <div className="form-group">
