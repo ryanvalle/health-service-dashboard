@@ -113,11 +113,11 @@ function Dashboard() {
           <div className="empty-icon">🔍</div>
           <h2 className="empty-title">No endpoints found</h2>
           <p className="empty-message">
-            {searchTerm || filter !== 'all' 
+            {searchTerm || filter !== 'all' || selectedTag
               ? 'Try adjusting your search or filter' 
               : 'Get started by adding your first health check endpoint'}
           </p>
-          {!searchTerm && filter === 'all' && (
+          {!searchTerm && filter === 'all' && !selectedTag && (
             <Link to="/endpoints/new" className="btn btn-primary">
               Add Your First Endpoint
             </Link>
