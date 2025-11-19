@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { endpointsAPI } from '../services/api';
 import { useTimezone } from '../context/TimezoneContext';
@@ -10,7 +10,9 @@ function Dashboard() {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState('all');
-  const [selectedTag, setSelectedTag] = useState('');
+  const [selectedTags, setSelectedTags] = useState([]);
+  const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false);
+  const tagDropdownRef = useRef(null);
   const { effectiveTimezone } = useTimezone();
 
   useEffect(() => {
@@ -18,6 +20,22 @@ function Dashboard() {
     const interval = setInterval(fetchEndpoints, 30000); // Refresh every 30 seconds
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (tagDropdownRef.current && !tagDropdownRef.current.contains(event.target)) {
+        setIsTagDropdownOpen(false);
+      }
+    };
+
+    if (isTagDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isTagDropdownOpen]);
 
   const fetchEndpoints = async () => {
     try {
@@ -50,11 +68,30 @@ function Dashboard() {
     return Array.from(tagsSet).sort();
   };
 
+  const handleTagToggle = (tag) => {
+    setSelectedTags(prev => {
+      if (prev.includes(tag)) {
+        return prev.filter(t => t !== tag);
+      } else {
+        return [...prev, tag];
+      }
+    });
+  };
+
+  const handleSelectAllTags = () => {
+    setSelectedTags(getAllTags());
+  };
+
+  const handleDeselectAllTags = () => {
+    setSelectedTags([]);
+  };
+
   const filteredEndpoints = endpoints.filter(endpoint => {
     const matchesSearch = endpoint.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          endpoint.url.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesTag = !selectedTag || (endpoint.tags && endpoint.tags.includes(selectedTag));
+    const matchesTag = selectedTags.length === 0 || 
+                      (endpoint.tags && endpoint.tags.some(tag => selectedTags.includes(tag)));
     
     if (filter === 'all') return matchesSearch && matchesTag;
     return matchesSearch && matchesTag && getStatusText(endpoint) === filter;
@@ -91,17 +128,111 @@ function Dashboard() {
             <option value="unhealthy">Unhealthy</option>
             <option value="unknown">Unknown</option>
           </select>
-          <select 
-            className="form-select" 
-            value={selectedTag} 
-            onChange={(e) => setSelectedTag(e.target.value)}
-            style={{ width: 'auto', padding: '0.5rem 1rem' }}
-          >
-            <option value="">All Tags</option>
-            {getAllTags().map(tag => (
-              <option key={tag} value={tag}>{tag}</option>
-            ))}
-          </select>
+          <div style={{ position: 'relative' }} ref={tagDropdownRef}>
+            <button
+              className="form-select"
+              onClick={() => setIsTagDropdownOpen(!isTagDropdownOpen)}
+              style={{ 
+                width: 'auto', 
+                padding: '0.5rem 1rem',
+                cursor: 'pointer',
+                backgroundColor: 'white',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}
+            >
+              <span>
+                {selectedTags.length === 0 
+                  ? 'All Tags' 
+                  : `${selectedTags.length} tag${selectedTags.length > 1 ? 's' : ''} selected`}
+              </span>
+              <span style={{ marginLeft: '0.5rem' }}>▼</span>
+            </button>
+            {isTagDropdownOpen && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  marginTop: '0.25rem',
+                  backgroundColor: 'white',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                  zIndex: 1000,
+                  minWidth: '200px',
+                  maxHeight: '300px',
+                  overflowY: 'auto'
+                }}
+              >
+                <div style={{ 
+                  padding: '0.5rem',
+                  borderBottom: '1px solid #eee',
+                  display: 'flex',
+                  gap: '0.5rem',
+                  flexWrap: 'wrap'
+                }}>
+                  <button
+                    onClick={handleSelectAllTags}
+                    style={{
+                      padding: '0.25rem 0.5rem',
+                      fontSize: '0.75rem',
+                      backgroundColor: '#f0f0f0',
+                      border: '1px solid #ddd',
+                      borderRadius: '3px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Select All
+                  </button>
+                  <button
+                    onClick={handleDeselectAllTags}
+                    style={{
+                      padding: '0.25rem 0.5rem',
+                      fontSize: '0.75rem',
+                      backgroundColor: '#f0f0f0',
+                      border: '1px solid #ddd',
+                      borderRadius: '3px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Deselect All
+                  </button>
+                </div>
+                {getAllTags().length === 0 ? (
+                  <div style={{ padding: '0.75rem', color: '#999', fontSize: '0.875rem' }}>
+                    No tags available
+                  </div>
+                ) : (
+                  getAllTags().map(tag => (
+                    <label
+                      key={tag}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: '0.5rem 0.75rem',
+                        cursor: 'pointer',
+                        borderBottom: '1px solid #f0f0f0'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f8f8'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedTags.includes(tag)}
+                        onChange={() => handleTagToggle(tag)}
+                        style={{ marginRight: '0.5rem', cursor: 'pointer' }}
+                      />
+                      <span>{tag}</span>
+                    </label>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
           <Link to="/endpoints/new" className="btn btn-primary">
             + Add Endpoint
           </Link>
@@ -113,11 +244,11 @@ function Dashboard() {
           <div className="empty-icon">🔍</div>
           <h2 className="empty-title">No endpoints found</h2>
           <p className="empty-message">
-            {searchTerm || filter !== 'all' || selectedTag
+            {searchTerm || filter !== 'all' || selectedTags.length > 0
               ? 'Try adjusting your search or filter' 
               : 'Get started by adding your first health check endpoint'}
           </p>
-          {!searchTerm && filter === 'all' && !selectedTag && (
+          {!searchTerm && filter === 'all' && selectedTags.length === 0 && (
             <Link to="/endpoints/new" className="btn btn-primary">
               Add Your First Endpoint
             </Link>
