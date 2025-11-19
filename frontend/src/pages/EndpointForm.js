@@ -19,6 +19,7 @@ function EndpointForm() {
     cron_schedule: '',
     timeout: '30000',
     uptime_threshold: '90',
+    tags: '',
     is_active: true
   });
 
@@ -52,6 +53,7 @@ function EndpointForm() {
         cron_schedule: endpoint.cron_schedule || '',
         timeout: endpoint.timeout,
         uptime_threshold: endpoint.uptime_threshold || '90',
+        tags: (endpoint.tags || []).join(', '),
         is_active: endpoint.is_active
       });
     } catch (err) {
@@ -175,6 +177,14 @@ function EndpointForm() {
         data.uptime_threshold = parseInt(formData.uptime_threshold);
       }
 
+      // Tags
+      if (formData.tags.trim()) {
+        data.tags = formData.tags
+          .split(',')
+          .map(tag => tag.trim())
+          .filter(tag => tag.length > 0);
+      }
+
       // Scheduling
       if (formData.cron_schedule.trim()) {
         data.cron_schedule = formData.cron_schedule;
@@ -213,6 +223,19 @@ function EndpointForm() {
             required
             placeholder="My API Service"
           />
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">Tags</label>
+          <input
+            type="text"
+            name="tags"
+            className="form-input"
+            value={formData.tags}
+            onChange={handleChange}
+            placeholder="production, api, critical"
+          />
+          <span className="form-hint">Comma-separated list of tags to categorize this endpoint</span>
         </div>
 
         <div className="form-group">

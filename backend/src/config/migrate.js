@@ -54,6 +54,15 @@ async function migrate() {
       console.log('[MIGRATE] uptime_threshold column already exists or error:', err.message);
     }
 
+    // Add tags column if it doesn't exist (for existing databases)
+    try {
+      await db.run(`ALTER TABLE endpoints ADD COLUMN tags TEXT`);
+      console.log('[MIGRATE] Added tags column');
+    } catch (err) {
+      // Column already exists or other error, ignore
+      console.log('[MIGRATE] tags column already exists or error:', err.message);
+    }
+
     // Create check_results table
     console.log('[MIGRATE] Creating check_results table...');
     await db.run(`

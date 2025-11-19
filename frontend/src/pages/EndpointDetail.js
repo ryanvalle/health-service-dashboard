@@ -161,6 +161,27 @@ function EndpointDetail() {
         <div>
           <h1 className="detail-title">{endpoint.name}</h1>
           <p className="endpoint-url">{endpoint.method} {endpoint.url}</p>
+          {endpoint.tags && endpoint.tags.length > 0 && (
+            <div style={{ marginTop: '0.5rem' }}>
+              {endpoint.tags.map(tag => (
+                <span 
+                  key={tag} 
+                  style={{ 
+                    display: 'inline-block',
+                    backgroundColor: '#e0e7ff',
+                    color: '#4c51bf',
+                    padding: '0.25rem 0.5rem',
+                    borderRadius: '0.25rem',
+                    fontSize: '0.75rem',
+                    marginRight: '0.25rem',
+                    marginBottom: '0.25rem'
+                  }}
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
           <span className={`status-badge status-${statusText}`} style={{ marginTop: '0.5rem', display: 'inline-block' }}>
             {statusText}
           </span>
