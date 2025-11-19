@@ -281,7 +281,16 @@ function Dashboard() {
         </div>
       ) : (
         <div>
-          {Object.entries(groupedEndpoints).map(([folderName, folderEndpoints]) => {
+          {Object.entries(groupedEndpoints)
+            .sort(([folderA], [folderB]) => {
+              const NO_FOLDER = '__no_folder__';
+              // Keep "Ungrouped Endpoints" at the end
+              if (folderA === NO_FOLDER) return 1;
+              if (folderB === NO_FOLDER) return -1;
+              // Sort other folders alphabetically
+              return folderA.localeCompare(folderB);
+            })
+            .map(([folderName, folderEndpoints]) => {
             const NO_FOLDER = '__no_folder__';
             const isNoFolder = folderName === NO_FOLDER;
             const displayName = isNoFolder ? 'Ungrouped Endpoints' : folderName;
