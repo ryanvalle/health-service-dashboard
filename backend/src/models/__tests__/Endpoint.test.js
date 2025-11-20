@@ -251,5 +251,74 @@ describe('Endpoint', () => {
       const parsed = Endpoint.parse(rawEndpoint);
       expect(parsed.folder).toBeNull();
     });
+
+    it('should parse schedule_type when present', () => {
+      const rawEndpoint = {
+        id: '123',
+        name: 'Test Endpoint',
+        url: 'https://api.example.com/health',
+        method: 'GET',
+        headers: '{}',
+        expected_status_codes: '[200]',
+        json_path_assertions: '[]',
+        schedule_type: 'cron',
+        is_active: 1
+      };
+
+      const parsed = Endpoint.parse(rawEndpoint);
+      expect(parsed.schedule_type).toBe('cron');
+    });
+
+    it('should handle schedule_type with interval value', () => {
+      const rawEndpoint = {
+        id: '123',
+        name: 'Test Endpoint',
+        url: 'https://api.example.com/health',
+        method: 'GET',
+        headers: '{}',
+        expected_status_codes: '[200]',
+        json_path_assertions: '[]',
+        schedule_type: 'interval',
+        check_frequency: 5,
+        is_active: 1
+      };
+
+      const parsed = Endpoint.parse(rawEndpoint);
+      expect(parsed.schedule_type).toBe('interval');
+      expect(parsed.check_frequency).toBe(5);
+    });
+
+    it('should default schedule_type to interval when null', () => {
+      const rawEndpoint = {
+        id: '123',
+        name: 'Test Endpoint',
+        url: 'https://api.example.com/health',
+        method: 'GET',
+        headers: '{}',
+        expected_status_codes: '[200]',
+        json_path_assertions: '[]',
+        schedule_type: null,
+        is_active: 1
+      };
+
+      const parsed = Endpoint.parse(rawEndpoint);
+      expect(parsed.schedule_type).toBe('interval');
+    });
+
+    it('should default schedule_type to interval when undefined', () => {
+      const rawEndpoint = {
+        id: '123',
+        name: 'Test Endpoint',
+        url: 'https://api.example.com/health',
+        method: 'GET',
+        headers: '{}',
+        expected_status_codes: '[200]',
+        json_path_assertions: '[]',
+        is_active: 1
+      };
+
+      const parsed = Endpoint.parse(rawEndpoint);
+      expect(parsed.schedule_type).toBe('interval');
+    });
   });
 });

@@ -36,6 +36,7 @@ async function migrate() {
         response_time_threshold INTEGER,
         check_frequency INTEGER,
         cron_schedule TEXT,
+        schedule_type TEXT DEFAULT 'interval',
         timeout INTEGER DEFAULT 30000,
         uptime_threshold INTEGER DEFAULT 90,
         is_active INTEGER DEFAULT 1,
@@ -70,6 +71,15 @@ async function migrate() {
     } catch (err) {
       // Column already exists or other error, ignore
       console.log('[MIGRATE] folder column already exists or error:', err.message);
+    }
+
+    // Add schedule_type column if it doesn't exist (for existing databases)
+    try {
+      await db.run(`ALTER TABLE endpoints ADD COLUMN schedule_type TEXT DEFAULT 'interval'`);
+      console.log('[MIGRATE] Added schedule_type column');
+    } catch (err) {
+      // Column already exists or other error, ignore
+      console.log('[MIGRATE] schedule_type column already exists or error:', err.message);
     }
 
     // Create check_results table
