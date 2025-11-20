@@ -208,5 +208,122 @@ describe('PathAssertionsEditor', () => {
       expect(screen.getByText(/Operators:/i)).toBeInTheDocument();
       expect(screen.getByText(/Path examples:/i)).toBeInTheDocument();
     });
+
+    it('should have JSON viewer toggle button', () => {
+      render(<PathAssertionsEditor value="" onChange={mockOnChange} />);
+      
+      expect(screen.getByRole('button', { name: /Show Raw JSON Configuration/i })).toBeInTheDocument();
+    });
+
+    it('should toggle JSON viewer when button clicked', () => {
+      const value = JSON.stringify([
+        { path: 'data.status', operator: 'equals', value: 'healthy' }
+      ]);
+      render(<PathAssertionsEditor value={value} onChange={mockOnChange} />);
+      
+      const toggleButton = screen.getByRole('button', { name: /Show Raw JSON Configuration/i });
+      fireEvent.click(toggleButton);
+      
+      expect(screen.getByRole('button', { name: /Hide Raw JSON Configuration/i })).toBeInTheDocument();
+    });
+  });
+
+  describe('Type conversion', () => {
+    it('should convert string "true" to boolean true', () => {
+      const value = JSON.stringify([
+        { path: 'data.active', operator: 'equals', value: '' }
+      ]);
+      render(<PathAssertionsEditor value={value} onChange={mockOnChange} />);
+      
+      const valueInput = screen.getByPlaceholderText(/e.g., true, false/i);
+      fireEvent.change(valueInput, { target: { value: 'true' } });
+      
+      const calls = mockOnChange.mock.calls;
+      const lastCall = calls[calls.length - 1][0];
+      const parsed = JSON.parse(lastCall);
+      expect(parsed[0].value).toBe(true);
+      expect(typeof parsed[0].value).toBe('boolean');
+    });
+
+    it('should convert string "false" to boolean false', () => {
+      const value = JSON.stringify([
+        { path: 'data.enabled', operator: 'equals', value: '' }
+      ]);
+      render(<PathAssertionsEditor value={value} onChange={mockOnChange} />);
+      
+      const valueInput = screen.getByPlaceholderText(/e.g., true, false/i);
+      fireEvent.change(valueInput, { target: { value: 'false' } });
+      
+      const calls = mockOnChange.mock.calls;
+      const lastCall = calls[calls.length - 1][0];
+      const parsed = JSON.parse(lastCall);
+      expect(parsed[0].value).toBe(false);
+      expect(typeof parsed[0].value).toBe('boolean');
+    });
+
+    it('should convert string "null" to null', () => {
+      const value = JSON.stringify([
+        { path: 'data.optional', operator: 'equals', value: '' }
+      ]);
+      render(<PathAssertionsEditor value={value} onChange={mockOnChange} />);
+      
+      const valueInput = screen.getByPlaceholderText(/e.g., true, false/i);
+      fireEvent.change(valueInput, { target: { value: 'null' } });
+      
+      const calls = mockOnChange.mock.calls;
+      const lastCall = calls[calls.length - 1][0];
+      const parsed = JSON.parse(lastCall);
+      expect(parsed[0].value).toBe(null);
+    });
+
+    it('should convert numeric string to number', () => {
+      const value = JSON.stringify([
+        { path: 'data.count', operator: 'equals', value: '' }
+      ]);
+      render(<PathAssertionsEditor value={value} onChange={mockOnChange} />);
+      
+      const valueInput = screen.getByPlaceholderText(/e.g., true, false/i);
+      fireEvent.change(valueInput, { target: { value: '123' } });
+      
+      const calls = mockOnChange.mock.calls;
+      const lastCall = calls[calls.length - 1][0];
+      const parsed = JSON.parse(lastCall);
+      expect(parsed[0].value).toBe(123);
+      expect(typeof parsed[0].value).toBe('number');
+    });
+
+    it('should keep text as string', () => {
+      const value = JSON.stringify([
+        { path: 'data.name', operator: 'equals', value: '' }
+      ]);
+      render(<PathAssertionsEditor value={value} onChange={mockOnChange} />);
+      
+      const valueInput = screen.getByPlaceholderText(/e.g., true, false/i);
+      fireEvent.change(valueInput, { target: { value: 'hello' } });
+      
+      const calls = mockOnChange.mock.calls;
+      const lastCall = calls[calls.length - 1][0];
+      const parsed = JSON.parse(lastCall);
+      expect(parsed[0].value).toBe('hello');
+      expect(typeof parsed[0].value).toBe('string');
+    });
+
+    it('should display boolean values correctly', () => {
+      const value = JSON.stringify([
+        { path: 'data.active', operator: 'equals', value: true }
+      ]);
+      render(<PathAssertionsEditor value={value} onChange={mockOnChange} />);
+      
+      expect(screen.getByDisplayValue('true')).toBeInTheDocument();
+    });
+
+    it('should display null correctly', () => {
+      const value = JSON.stringify([
+        { path: 'data.optional', operator: 'equals', value: null }
+      ]);
+      render(<PathAssertionsEditor value={value} onChange={mockOnChange} />);
+      
+      expect(screen.getByDisplayValue('null')).toBeInTheDocument();
+    });
   });
 });

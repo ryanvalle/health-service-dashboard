@@ -11,6 +11,7 @@ const OPERATORS = [
 function PathAssertionsEditor({ value, onChange }) {
   const [assertions, setAssertions] = useState([]);
   const [error, setError] = useState(null);
+  const [showJson, setShowJson] = useState(false);
 
   // Initialize assertions from JSON string value
   useEffect(() => {
@@ -33,6 +34,35 @@ function PathAssertionsEditor({ value, onChange }) {
       setAssertions([]);
     }
   }, [value]);
+
+  // Convert string value to appropriate type (boolean, number, null, or string)
+  const parseValue = (valueStr) => {
+    if (valueStr === '') return '';
+    
+    // Check for boolean
+    if (valueStr === 'true') return true;
+    if (valueStr === 'false') return false;
+    
+    // Check for null
+    if (valueStr === 'null') return null;
+    
+    // Check for number
+    const num = Number(valueStr);
+    if (!isNaN(num) && valueStr.trim() !== '') {
+      return num;
+    }
+    
+    // Return as string
+    return valueStr;
+  };
+
+  // Convert value to string for display
+  const valueToString = (val) => {
+    if (val === null) return 'null';
+    if (typeof val === 'boolean') return val.toString();
+    if (typeof val === 'number') return val.toString();
+    return val || '';
+  };
 
   // Update parent component when assertions change
   const updateParent = (newAssertions) => {
@@ -58,10 +88,18 @@ function PathAssertionsEditor({ value, onChange }) {
 
   const updateAssertion = (index, field, newValue) => {
     const newAssertions = [...assertions];
-    newAssertions[index] = {
-      ...newAssertions[index],
-      [field]: newValue
-    };
+    if (field === 'value') {
+      // Parse value to appropriate type
+      newAssertions[index] = {
+        ...newAssertions[index],
+        [field]: parseValue(newValue)
+      };
+    } else {
+      newAssertions[index] = {
+        ...newAssertions[index],
+        [field]: newValue
+      };
+    }
     updateParent(newAssertions);
   };
 
@@ -126,9 +164,9 @@ function PathAssertionsEditor({ value, onChange }) {
                   <input
                     type="text"
                     className="assertion-input"
-                    value={assertion.value || ''}
+                    value={valueToString(assertion.value)}
                     onChange={(e) => updateAssertion(index, 'value', e.target.value)}
-                    placeholder={assertion.operator === 'exists' ? 'Not used for exists' : 'Expected value'}
+                    placeholder={assertion.operator === 'exists' ? 'Not used for exists' : 'e.g., true, false, null, 123, or "text"'}
                     disabled={assertion.operator === 'exists'}
                   />
                 </div>
@@ -156,6 +194,23 @@ function PathAssertionsEditor({ value, onChange }) {
           <li><strong>Exists:</strong> Field must exist in response (value not used)</li>
         </ul>
         <strong>Path examples:</strong> <code>status</code>, <code>data.user.name</code>, <code>items.0.id</code>
+        <br />
+        <strong>Value types:</strong> Type <code>true</code> or <code>false</code> for booleans, <code>null</code> for null, numbers without quotes, or any text for strings
+      </div>
+
+      <div className="json-viewer-section">
+        <button
+          type="button"
+          className="btn-toggle-json"
+          onClick={() => setShowJson(!showJson)}
+        >
+          {showJson ? '▼' : '▶'} {showJson ? 'Hide' : 'Show'} Raw JSON Configuration
+        </button>
+        {showJson && (
+          <pre className="json-viewer">
+            {JSON.stringify(assertions, null, 2)}
+          </pre>
+        )}
       </div>
     </div>
   );
