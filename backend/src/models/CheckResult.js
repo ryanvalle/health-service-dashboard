@@ -103,6 +103,14 @@ class CheckResult {
     return result.changes;
   }
 
+  static async delete(id) {
+    const result = await db.run(
+      'DELETE FROM check_results WHERE id = ?',
+      [id]
+    );
+    return result.changes > 0;
+  }
+
   static parse(result) {
     if (!result) return null;
 

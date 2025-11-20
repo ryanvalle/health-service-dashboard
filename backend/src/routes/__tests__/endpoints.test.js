@@ -17,6 +17,7 @@ jest.mock('../../services/SchedulerService', () => ({
 const app = express();
 app.use(express.json());
 app.use('/api/endpoints', endpointsRouter);
+app.use('/api', endpointsRouter); // Also mount directly for check-results routes
 
 describe('Endpoints Routes - Analysis', () => {
   beforeEach(() => {
@@ -152,6 +153,61 @@ describe('Endpoints Routes - Analysis', () => {
         .expect(400);
 
       expect(response.body.errors).toBeDefined();
+    });
+  });
+
+  describe('DELETE /api/check-results/:id', () => {
+    const mockCheckResult = {
+      id: 1,
+      endpoint_id: 'test-uuid-123',
+      is_healthy: false,
+      status_code: 500,
+      response_body: '{"error": "Internal Server Error"}',
+      response_time: 1500,
+      error_message: 'Expected status 200, got 500',
+      timestamp: '2023-01-01T00:00:00Z'
+    };
+
+    it('should successfully delete a check result', async () => {
+      CheckResult.findById.mockResolvedValue(mockCheckResult);
+      CheckResult.delete.mockResolvedValue(true);
+
+      const response = await request(app)
+        .delete('/api/check-results/1')
+        .expect(200);
+
+      expect(response.body.message).toBe('Check result deleted successfully');
+      expect(CheckResult.findById).toHaveBeenCalledWith(1);
+      expect(CheckResult.delete).toHaveBeenCalledWith(1);
+    });
+
+    it('should return 404 if check result does not exist', async () => {
+      CheckResult.findById.mockResolvedValue(null);
+
+      const response = await request(app)
+        .delete('/api/check-results/999')
+        .expect(404);
+
+      expect(response.body.error).toBe('Check result not found');
+    });
+
+    it('should validate check ID is an integer', async () => {
+      const response = await request(app)
+        .delete('/api/check-results/abc')
+        .expect(400);
+
+      expect(response.body.errors).toBeDefined();
+    });
+
+    it('should handle database errors', async () => {
+      CheckResult.findById.mockResolvedValue(mockCheckResult);
+      CheckResult.delete.mockRejectedValue(new Error('Database error'));
+
+      const response = await request(app)
+        .delete('/api/check-results/1')
+        .expect(500);
+
+      expect(response.body.error).toBe('Failed to delete check result');
     });
   });
 });

@@ -36,6 +36,11 @@ export const endpointsAPI = {
   import: (data) => api.post('/api/endpoints/import', data)
 };
 
+// Check Results API
+export const checkResultsAPI = {
+  delete: (id) => api.delete(`/api/check-results/${id}`)
+};
+
 // Settings API
 export const settingsAPI = {
   getAll: () => api.get('/api/settings'),
