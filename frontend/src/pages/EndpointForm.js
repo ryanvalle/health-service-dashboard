@@ -18,6 +18,7 @@ function EndpointForm() {
     response_time_threshold: '',
     check_frequency: '5',
     cron_schedule: '',
+    schedule_type: 'interval',
     timeout: '30000',
     uptime_threshold: '90',
     tags: '',
@@ -53,6 +54,7 @@ function EndpointForm() {
         response_time_threshold: endpoint.response_time_threshold || '',
         check_frequency: endpoint.check_frequency || '',
         cron_schedule: endpoint.cron_schedule || '',
+        schedule_type: endpoint.schedule_type || 'interval',
         timeout: endpoint.timeout,
         uptime_threshold: endpoint.uptime_threshold || '90',
         tags: (endpoint.tags || []).join(', '),
@@ -193,11 +195,23 @@ function EndpointForm() {
         data.folder = formData.folder.trim();
       }
 
-      // Scheduling
-      if (formData.cron_schedule.trim()) {
-        data.cron_schedule = formData.cron_schedule;
-      } else if (formData.check_frequency) {
-        data.check_frequency = parseInt(formData.check_frequency);
+      // Schedule type
+      data.schedule_type = formData.schedule_type;
+
+      // Scheduling - send values based on schedule_type
+      if (formData.schedule_type === 'cron') {
+        if (formData.cron_schedule.trim()) {
+          data.cron_schedule = formData.cron_schedule.trim();
+        }
+        // Explicitly set check_frequency to null when using cron
+        data.check_frequency = null;
+      } else {
+        // schedule_type is 'interval'
+        if (formData.check_frequency) {
+          data.check_frequency = parseInt(formData.check_frequency);
+        }
+        // Explicitly set cron_schedule to null when using interval
+        data.cron_schedule = null;
       }
 
       if (isEdit) {
@@ -359,34 +373,52 @@ function EndpointForm() {
         </div>
 
         <div className="form-group">
-          <label className="form-label">Check Frequency (minutes)</label>
-          <input
-            type="number"
-            name="check_frequency"
-            className="form-input"
-            value={formData.check_frequency}
+          <label className="form-label">Schedule Type</label>
+          <select
+            name="schedule_type"
+            className="form-select"
+            value={formData.schedule_type}
             onChange={handleChange}
-            placeholder="5"
-            min="1"
-          />
-          <span className="form-hint">How often to run the health check (in minutes)</span>
+          >
+            <option value="interval">Interval (Check Frequency)</option>
+            <option value="cron">Cron Schedule</option>
+          </select>
+          <span className="form-hint">Choose between simple interval or advanced cron scheduling</span>
         </div>
 
-        <div className="form-group">
-          <label className="form-label">Cron Schedule (Advanced)</label>
-          <input
-            type="text"
-            name="cron_schedule"
-            className="form-input"
-            value={formData.cron_schedule}
-            onChange={handleChange}
-            placeholder="*/5 * * * *"
-          />
-          <span className="form-hint">
-            Optional: Use cron expression for specific timing (overrides frequency). 
-            Example: "*/5 * * * *" for every 5 minutes
-          </span>
-        </div>
+        {formData.schedule_type === 'interval' && (
+          <div className="form-group">
+            <label className="form-label">Check Frequency (minutes)</label>
+            <input
+              type="number"
+              name="check_frequency"
+              className="form-input"
+              value={formData.check_frequency}
+              onChange={handleChange}
+              placeholder="5"
+              min="1"
+            />
+            <span className="form-hint">How often to run the health check (in minutes)</span>
+          </div>
+        )}
+
+        {formData.schedule_type === 'cron' && (
+          <div className="form-group">
+            <label className="form-label">Cron Schedule</label>
+            <input
+              type="text"
+              name="cron_schedule"
+              className="form-input"
+              value={formData.cron_schedule}
+              onChange={handleChange}
+              placeholder="*/5 * * * *"
+            />
+            <span className="form-hint">
+              Use cron expression for specific timing. 
+              Example: "*/5 * * * *" for every 5 minutes
+            </span>
+          </div>
+        )}
 
         <div className="form-group">
           <label className="form-label">Timeout (ms)</label>

@@ -72,6 +72,15 @@ async function migrate() {
       console.log('[MIGRATE] folder column already exists or error:', err.message);
     }
 
+    // Add schedule_type column if it doesn't exist (for existing databases)
+    try {
+      await db.run(`ALTER TABLE endpoints ADD COLUMN schedule_type TEXT DEFAULT 'interval'`);
+      console.log('[MIGRATE] Added schedule_type column');
+    } catch (err) {
+      // Column already exists or other error, ignore
+      console.log('[MIGRATE] schedule_type column already exists or error:', err.message);
+    }
+
     // Create check_results table
     console.log('[MIGRATE] Creating check_results table...');
     await db.run(`
