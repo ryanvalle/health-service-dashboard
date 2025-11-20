@@ -53,6 +53,157 @@ router.get('/', async (req, res) => {
 
 /**
  * @swagger
+ * /api/endpoints/export:
+ *   get:
+ *     summary: Export endpoint configurations
+ *     tags: [Endpoints]
+ *     parameters:
+ *       - in: query
+ *         name: ids
+ *         schema:
+ *           type: string
+ *         description: Comma-separated list of endpoint UUIDs to export. If not provided, all endpoints are exported.
+ */
+router.get('/export', async (req, res) => {
+  try {
+    let endpoints;
+    
+    if (req.query.ids) {
+      // Export specific endpoints
+      const ids = req.query.ids.split(',').map(id => id.trim());
+      endpoints = await Promise.all(
+        ids.map(id => Endpoint.findById(id))
+      );
+      // Filter out any null results (endpoints not found)
+      endpoints = endpoints.filter(e => e !== null);
+    } else {
+      // Export all endpoints
+      endpoints = await Endpoint.findAll();
+    }
+
+    // Remove system fields that shouldn't be exported
+    const exportData = endpoints.map(endpoint => {
+      const { latest_check, stats_7d, stats_30d, created_at, updated_at, ...exportEndpoint } = endpoint;
+      return exportEndpoint;
+    });
+
+    // Create export object with schema version
+    const exportObject = {
+      schema_version: '1.0',
+      exported_at: new Date().toISOString(),
+      endpoints: exportData
+    };
+
+    res.json(exportObject);
+  } catch (error) {
+    console.error('Error exporting endpoints:', error);
+    res.status(500).json({ error: 'Failed to export endpoints' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/endpoints/import:
+ *   post:
+ *     summary: Import endpoint configurations
+ *     tags: [Endpoints]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               schema_version:
+ *                 type: string
+ *               endpoints:
+ *                 type: array
+ */
+router.post('/import', async (req, res) => {
+  try {
+    const { schema_version, endpoints } = req.body;
+
+    // Validate schema
+    if (!schema_version || schema_version !== '1.0') {
+      return res.status(400).json({ 
+        error: 'Invalid or unsupported schema version. Expected version 1.0' 
+      });
+    }
+
+    if (!Array.isArray(endpoints)) {
+      return res.status(400).json({ 
+        error: 'Invalid import data: endpoints must be an array' 
+      });
+    }
+
+    // Validate each endpoint
+    const validationErrors = [];
+    endpoints.forEach((endpoint, index) => {
+      if (!endpoint.name || typeof endpoint.name !== 'string') {
+        validationErrors.push(`Endpoint ${index}: name is required and must be a string`);
+      }
+      if (!endpoint.url || typeof endpoint.url !== 'string') {
+        validationErrors.push(`Endpoint ${index}: url is required and must be a string`);
+      }
+      if (endpoint.method && !['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD'].includes(endpoint.method)) {
+        validationErrors.push(`Endpoint ${index}: invalid method ${endpoint.method}`);
+      }
+    });
+
+    if (validationErrors.length > 0) {
+      return res.status(400).json({ 
+        error: 'Validation failed',
+        details: validationErrors
+      });
+    }
+
+    // Import endpoints
+    const importResults = {
+      successful: [],
+      failed: []
+    };
+
+    for (const endpointData of endpoints) {
+      try {
+        // Remove id if it exists to create a new endpoint with a new UUID
+        const { id, ...dataWithoutId } = endpointData;
+        
+        const newEndpoint = await Endpoint.create(dataWithoutId);
+        
+        // Schedule the new endpoint
+        schedulerService.scheduleEndpoint(newEndpoint);
+        
+        importResults.successful.push({
+          name: newEndpoint.name,
+          id: newEndpoint.id,
+          url: newEndpoint.url
+        });
+      } catch (error) {
+        importResults.failed.push({
+          name: endpointData.name,
+          url: endpointData.url,
+          error: error.message
+        });
+      }
+    }
+
+    res.json({
+      message: 'Import completed',
+      summary: {
+        total: endpoints.length,
+        successful: importResults.successful.length,
+        failed: importResults.failed.length
+      },
+      results: importResults
+    });
+  } catch (error) {
+    console.error('Error importing endpoints:', error);
+    res.status(500).json({ error: 'Failed to import endpoints' });
+  }
+});
+
+/**
+ * @swagger
  * /api/endpoints/{id}:
  *   get:
  *     summary: Get a single endpoint by UUID

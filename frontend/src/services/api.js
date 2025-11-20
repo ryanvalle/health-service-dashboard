@@ -28,7 +28,12 @@ export const endpointsAPI = {
   update: (id, data) => api.put(`/api/endpoints/${id}`, data),
   delete: (id) => api.delete(`/api/endpoints/${id}`),
   triggerCheck: (id) => api.post(`/api/endpoints/${id}/check`),
-  getHistory: (id, limit = 100) => api.get(`/api/endpoints/${id}/history`, { params: { limit } })
+  getHistory: (id, limit = 100) => api.get(`/api/endpoints/${id}/history`, { params: { limit } }),
+  export: (ids = null) => {
+    const params = ids ? { ids: ids.join(',') } : {};
+    return api.get('/api/endpoints/export', { params });
+  },
+  import: (data) => api.post('/api/endpoints/import', data)
 };
 
 // Settings API
