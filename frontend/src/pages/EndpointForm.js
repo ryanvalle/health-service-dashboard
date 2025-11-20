@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { endpointsAPI } from '../services/api';
+import PathAssertionsEditor from '../components/PathAssertionsEditor';
 
 function EndpointForm() {
   const { id } = useParams();
@@ -329,36 +330,19 @@ function EndpointForm() {
         </div>
 
         <div className="form-group">
-          <label className="form-label">JSON Path Assertions (JSON Array)</label>
-          <div style={{ position: 'relative' }}>
-            <textarea
-              name="json_path_assertions"
-              className="form-textarea"
-              value={formData.json_path_assertions}
-              onChange={handleChange}
-              onBlur={() => validateJSON('json_path_assertions')}
-              placeholder='[{"path": "data.status", "operator": "equals", "value": "ok"}]'
-              style={{ 
-                borderColor: jsonErrors.json_path_assertions ? '#e74c3c' : undefined,
-                minHeight: '120px'
-              }}
-            />
-            <button
-              type="button"
-              className="btn-format-json"
-              onClick={() => formatJSON('json_path_assertions')}
-              title="Format JSON"
-            >
-              Format JSON
-            </button>
-          </div>
-          {jsonErrors.json_path_assertions && (
-            <span className="form-error">{jsonErrors.json_path_assertions}</span>
-          )}
-          <span className="form-hint">
-            Optional: Array of assertions to validate response body. 
-            Operators: equals, notEquals, contains, exists
-          </span>
+          <PathAssertionsEditor
+            value={formData.json_path_assertions}
+            onChange={(value) => {
+              setFormData(prev => ({
+                ...prev,
+                json_path_assertions: value
+              }));
+              setJsonErrors(prev => ({
+                ...prev,
+                json_path_assertions: null
+              }));
+            }}
+          />
         </div>
 
         <div className="form-group">
