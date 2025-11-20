@@ -36,6 +36,7 @@ async function migrate() {
         response_time_threshold INTEGER,
         check_frequency INTEGER,
         cron_schedule TEXT,
+        schedule_type TEXT DEFAULT 'interval',
         timeout INTEGER DEFAULT 30000,
         uptime_threshold INTEGER DEFAULT 90,
         is_active INTEGER DEFAULT 1,
