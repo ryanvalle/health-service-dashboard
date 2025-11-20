@@ -17,6 +17,11 @@ jest.mock('../../context/TimezoneContext', () => ({
   useTimezone: () => ({ effectiveTimezone: 'UTC' })
 }));
 
+// Mock the PDF export utilities
+jest.mock('../../utils/pdfExport', () => ({
+  exportDashboardToPDF: jest.fn()
+}));
+
 describe('Dashboard - Health Status', () => {
   beforeEach(() => {
     jest.clearAllMocks();
