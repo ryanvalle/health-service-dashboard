@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { endpointsAPI } from '../services/api';
 import { useTimezone } from '../context/TimezoneContext';
 import { formatTimestamp } from '../utils/dateUtils';
+import { exportDashboardToPDF } from '../utils/pdfExport';
 
 function Dashboard() {
   const [endpoints, setEndpoints] = useState([]);
@@ -13,6 +14,7 @@ function Dashboard() {
   const [selectedTags, setSelectedTags] = useState([]);
   const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false);
   const [expandedFolders, setExpandedFolders] = useState({});
+  const [exportingPDF, setExportingPDF] = useState(false);
   const tagDropdownRef = useRef(null);
   const { effectiveTimezone } = useTimezone();
 
@@ -145,6 +147,18 @@ function Dashboard() {
 
   const groupedEndpoints = groupEndpointsByFolder(filteredEndpoints);
 
+  const handleExportPDF = async () => {
+    setExportingPDF(true);
+    try {
+      await exportDashboardToPDF('health-dashboard.pdf');
+    } catch (error) {
+      console.error('Failed to export PDF:', error);
+      alert('Failed to export PDF. Please try again.');
+    } finally {
+      setExportingPDF(false);
+    }
+  };
+
   if (loading) {
     return <div className="loading">Loading endpoints...</div>;
   }
@@ -159,14 +173,28 @@ function Dashboard() {
         <h1 className="dashboard-title">Service Health Dashboard</h1>
         <div className="dashboard-actions">
           <div className="dashboard-actions-row">
+            <button
+              onClick={handleExportPDF}
+              disabled={exportingPDF}
+              className="btn btn-primary pdf-hide"
+              style={{ 
+                marginRight: '1rem',
+                padding: '0.5rem 1rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}
+            >
+              {exportingPDF ? '📄 Generating PDF...' : '📄 Export to PDF'}
+            </button>
             <input
               type="text"
-              className="search-box"
+              className="search-box pdf-hide"
               placeholder="Search endpoints..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
-            <div style={{ position: 'relative' }} ref={tagDropdownRef}>
+            <div style={{ position: 'relative' }} ref={tagDropdownRef} className="pdf-hide">
             <button
               className="form-select"
               onClick={() => setIsTagDropdownOpen(!isTagDropdownOpen)}
@@ -272,7 +300,7 @@ function Dashboard() {
             )}
           </div>
           </div>
-          <div className="status-filter-buttons">
+          <div className="status-filter-buttons pdf-hide">
             {(() => {
               const statusCounts = getStatusCounts();
               const totalEndpoints = endpoints.length;
