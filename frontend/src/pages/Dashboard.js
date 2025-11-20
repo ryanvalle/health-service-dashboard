@@ -52,11 +52,8 @@ function Dashboard() {
   const getStatusText = (endpoint) => {
     if (!endpoint.latest_check) return 'unknown';
     
-    // Determine status based on uptime threshold
-    const uptimePercent = parseFloat(endpoint.stats_7d?.uptime_percentage) || 0;
-    const uptimeThreshold = endpoint.uptime_threshold || 90;
-    
-    return uptimePercent >= uptimeThreshold ? 'healthy' : 'unhealthy';
+    // Determine status based on the most recent test
+    return endpoint.latest_check.is_healthy ? 'healthy' : 'unhealthy';
   };
 
   const getAllTags = () => {
