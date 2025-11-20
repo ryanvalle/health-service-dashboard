@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { endpointsAPI, analysisAPI, settingsAPI } from '../services/api';
+import { endpointsAPI, analysisAPI, settingsAPI, checkResultsAPI } from '../services/api';
 import { useTimezone } from '../context/TimezoneContext';
 import { formatTimestamp, formatRelativeTime, calculateNextCheckTime, formatChartTimestamp } from '../utils/dateUtils';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -25,6 +25,8 @@ function EndpointDetail() {
   const [checking, setChecking] = useState(false);
   const [analyzingCheckId, setAnalyzingCheckId] = useState(null);
   const [openAIEnabled, setOpenAIEnabled] = useState(false);
+  const [healthFilter, setHealthFilter] = useState('all'); // 'all', 'healthy', 'unhealthy'
+  const [expandedResponseId, setExpandedResponseId] = useState(null);
   const { effectiveTimezone } = useTimezone();
 
   useEffect(() => {
@@ -104,6 +106,20 @@ function EndpointDetail() {
     }
   };
 
+  const handleDeleteCheckResult = async (checkId) => {
+    if (window.confirm('Are you sure you want to delete this check result? This will also update the uptime and response time statistics.')) {
+      try {
+        await checkResultsAPI.delete(checkId);
+        // Refresh the endpoint and history to update statistics
+        await fetchEndpoint();
+        await fetchHistory();
+      } catch (err) {
+        console.error('Failed to delete check result:', err);
+        alert('Failed to delete check result');
+      }
+    }
+  };
+
   const handleDelete = async () => {
     if (window.confirm('Are you sure you want to delete this endpoint?')) {
       try {
@@ -144,6 +160,13 @@ function EndpointDetail() {
       timestamp: check.timestamp,
       label: formatChartTimestamp(check.timestamp, { timezone: effectiveTimezone })
     });
+  });
+
+  // Filter history based on health filter
+  const filteredHistory = history.filter(check => {
+    if (healthFilter === 'healthy') return check.is_healthy;
+    if (healthFilter === 'unhealthy') return !check.is_healthy;
+    return true; // 'all'
   });
 
   // Calculate next check time
@@ -333,14 +356,44 @@ function EndpointDetail() {
       )}
 
       <div className="history-section">
-        <h2 className="history-title">Check History</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <h2 className="history-title" style={{ margin: 0 }}>Check History</h2>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button
+              className={`btn ${healthFilter === 'all' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setHealthFilter('all')}
+              style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
+            >
+              All ({history.length})
+            </button>
+            <button
+              className={`btn ${healthFilter === 'healthy' ? 'btn-success' : 'btn-secondary'}`}
+              onClick={() => setHealthFilter('healthy')}
+              style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
+            >
+              Healthy ({history.filter(c => c.is_healthy).length})
+            </button>
+            <button
+              className={`btn ${healthFilter === 'unhealthy' ? 'btn-danger' : 'btn-secondary'}`}
+              onClick={() => setHealthFilter('unhealthy')}
+              style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
+            >
+              Unhealthy ({history.filter(c => !c.is_healthy).length})
+            </button>
+          </div>
+        </div>
         <div className="history-list">
-          {history.length === 0 ? (
+          {filteredHistory.length === 0 ? (
             <div className="empty-state">
-              <p className="empty-message">No check history available yet</p>
+              <p className="empty-message">
+                {history.length === 0 
+                  ? 'No check history available yet'
+                  : `No ${healthFilter} check results found`
+                }
+              </p>
             </div>
           ) : (
-            history.map(check => (
+            filteredHistory.map(check => (
               <div 
                 key={check.id} 
                 className={`history-item ${check.is_healthy ? 'healthy' : 'unhealthy'}`}
@@ -371,13 +424,37 @@ function EndpointDetail() {
                 </div>
                 {check.response_body && (
                   <div className="history-response">
-                    <strong>Response Body:</strong>
-                    <div className="response-body">
-                      {check.response_body.substring(0, 500)}
-                      {check.response_body.length > 500 && '...'}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <strong>Response Body:</strong>
+                      {check.response_body.length > 500 && (
+                        <button
+                          onClick={() => setExpandedResponseId(expandedResponseId === check.id ? null : check.id)}
+                          className="btn btn-secondary"
+                          style={{ padding: '0.25rem 0.75rem', fontSize: '0.85rem' }}
+                        >
+                          {expandedResponseId === check.id ? 'Show Less' : 'Show Full Response'}
+                        </button>
+                      )}
+                    </div>
+                    <div className="response-body" style={{ marginTop: '0.5rem' }}>
+                      {expandedResponseId === check.id 
+                        ? check.response_body 
+                        : check.response_body.substring(0, 500) + (check.response_body.length > 500 ? '...' : '')
+                      }
                     </div>
                   </div>
                 )}
+                
+                {/* Action buttons */}
+                <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
+                  <button
+                    onClick={() => handleDeleteCheckResult(check.id)}
+                    className="btn btn-danger"
+                    style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
+                  >
+                    🗑️ Delete
+                  </button>
+                </div>
                 
                 {/* AI Analysis Section - Only show for unhealthy checks and when OpenAI is enabled */}
                 {!check.is_healthy && openAIEnabled && (
