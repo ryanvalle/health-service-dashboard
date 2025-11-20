@@ -202,6 +202,8 @@ function EndpointForm() {
       if (formData.schedule_type === 'cron') {
         if (formData.cron_schedule.trim()) {
           data.cron_schedule = formData.cron_schedule.trim();
+        } else {
+          data.cron_schedule = null;
         }
         // Explicitly set check_frequency to null when using cron
         data.check_frequency = null;
@@ -209,6 +211,8 @@ function EndpointForm() {
         // schedule_type is 'interval'
         if (formData.check_frequency) {
           data.check_frequency = parseInt(formData.check_frequency);
+        } else {
+          data.check_frequency = null;
         }
         // Explicitly set cron_schedule to null when using interval
         data.cron_schedule = null;

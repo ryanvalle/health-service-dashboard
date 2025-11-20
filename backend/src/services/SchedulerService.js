@@ -45,7 +45,7 @@ class SchedulerService {
     } else if (scheduleType === 'interval' && endpoint.check_frequency) {
       this.scheduleInterval(endpoint);
     } else {
-      console.warn(`Endpoint ${endpoint.name} has invalid scheduling configuration: type=${scheduleType}, frequency=${endpoint.check_frequency}, cron=${endpoint.cron_schedule}`);
+      console.warn(`Endpoint ${endpoint.name} has invalid scheduling configuration: schedule_type=${scheduleType}, check_frequency=${endpoint.check_frequency}, cron_schedule=${endpoint.cron_schedule}. Expected non-null check_frequency for 'interval' type or non-null cron_schedule for 'cron' type.`);
     }
   }
 
