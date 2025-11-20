@@ -133,6 +133,7 @@ class Endpoint {
         ? JSON.parse(endpoint.json_path_assertions) 
         : [],
       tags: endpoint.tags ? JSON.parse(endpoint.tags) : [],
+      schedule_type: endpoint.schedule_type || 'interval',
       is_active: Boolean(endpoint.is_active)
     };
   }
