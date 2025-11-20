@@ -9,7 +9,7 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filter, setFilter] = useState('all');
+  const [selectedStatuses, setSelectedStatuses] = useState(['healthy', 'unhealthy', 'unknown']);
   const [selectedTags, setSelectedTags] = useState([]);
   const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false);
   const [expandedFolders, setExpandedFolders] = useState({});
@@ -84,6 +84,31 @@ function Dashboard() {
     setSelectedTags([]);
   };
 
+  const toggleStatusFilter = (status) => {
+    setSelectedStatuses(prev => {
+      if (prev.includes(status)) {
+        return prev.filter(s => s !== status);
+      } else {
+        return [...prev, status];
+      }
+    });
+  };
+
+  const getStatusCounts = () => {
+    const counts = {
+      healthy: 0,
+      unhealthy: 0,
+      unknown: 0
+    };
+    
+    endpoints.forEach(endpoint => {
+      const status = getStatusText(endpoint);
+      counts[status]++;
+    });
+    
+    return counts;
+  };
+
   const toggleFolder = (folderName) => {
     setExpandedFolders(prev => ({
       ...prev,
@@ -113,8 +138,9 @@ function Dashboard() {
     const matchesTag = selectedTags.length === 0 || 
                       (endpoint.tags && endpoint.tags.some(tag => selectedTags.includes(tag)));
     
-    if (filter === 'all') return matchesSearch && matchesTag;
-    return matchesSearch && matchesTag && getStatusText(endpoint) === filter;
+    const matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(getStatusText(endpoint));
+    
+    return matchesSearch && matchesTag && matchesStatus;
   });
 
   const groupedEndpoints = groupEndpointsByFolder(filteredEndpoints);
@@ -132,25 +158,15 @@ function Dashboard() {
       <div className="dashboard-header">
         <h1 className="dashboard-title">Service Health Dashboard</h1>
         <div className="dashboard-actions">
-          <input
-            type="text"
-            className="search-box"
-            placeholder="Search endpoints..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          <select 
-            className="form-select" 
-            value={filter} 
-            onChange={(e) => setFilter(e.target.value)}
-            style={{ width: 'auto', padding: '0.5rem 1rem' }}
-          >
-            <option value="all">All Status</option>
-            <option value="healthy">Healthy</option>
-            <option value="unhealthy">Unhealthy</option>
-            <option value="unknown">Unknown</option>
-          </select>
-          <div style={{ position: 'relative' }} ref={tagDropdownRef}>
+          <div className="dashboard-actions-row">
+            <input
+              type="text"
+              className="search-box"
+              placeholder="Search endpoints..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <div style={{ position: 'relative' }} ref={tagDropdownRef}>
             <button
               className="form-select"
               onClick={() => setIsTagDropdownOpen(!isTagDropdownOpen)}
@@ -255,9 +271,126 @@ function Dashboard() {
               </div>
             )}
           </div>
-          <Link to="/endpoints/new" className="btn btn-primary">
-            + Add Endpoint
-          </Link>
+          </div>
+          <div className="status-filter-buttons">
+            {(() => {
+              const statusCounts = getStatusCounts();
+              const totalEndpoints = endpoints.length;
+              
+              return (
+                <>
+                  <button
+                    onClick={() => toggleStatusFilter('healthy')}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      border: selectedStatuses.includes('healthy') ? '2px solid #155724' : '2px solid transparent',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      backgroundColor: '#d4edda',
+                      color: '#155724',
+                      fontWeight: selectedStatuses.includes('healthy') ? '600' : '500',
+                      fontSize: '0.9rem',
+                      transition: 'all 0.2s',
+                      opacity: selectedStatuses.includes('healthy') ? 1 : 0.6,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!selectedStatuses.includes('healthy')) {
+                        e.currentTarget.style.opacity = '0.8';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!selectedStatuses.includes('healthy')) {
+                        e.currentTarget.style.opacity = '0.6';
+                      }
+                    }}
+                  >
+                    <span>Healthy</span>
+                    <span style={{ 
+                      fontWeight: '700',
+                      fontSize: '0.85rem'
+                    }}>
+                      ({statusCounts.healthy} / {totalEndpoints})
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => toggleStatusFilter('unhealthy')}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      border: selectedStatuses.includes('unhealthy') ? '2px solid #721c24' : '2px solid transparent',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      backgroundColor: '#f8d7da',
+                      color: '#721c24',
+                      fontWeight: selectedStatuses.includes('unhealthy') ? '600' : '500',
+                      fontSize: '0.9rem',
+                      transition: 'all 0.2s',
+                      opacity: selectedStatuses.includes('unhealthy') ? 1 : 0.6,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!selectedStatuses.includes('unhealthy')) {
+                        e.currentTarget.style.opacity = '0.8';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!selectedStatuses.includes('unhealthy')) {
+                        e.currentTarget.style.opacity = '0.6';
+                      }
+                    }}
+                  >
+                    <span>Unhealthy</span>
+                    <span style={{ 
+                      fontWeight: '700',
+                      fontSize: '0.85rem'
+                    }}>
+                      ({statusCounts.unhealthy} / {totalEndpoints})
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => toggleStatusFilter('unknown')}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      border: selectedStatuses.includes('unknown') ? '2px solid #856404' : '2px solid transparent',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      backgroundColor: '#fff3cd',
+                      color: '#856404',
+                      fontWeight: selectedStatuses.includes('unknown') ? '600' : '500',
+                      fontSize: '0.9rem',
+                      transition: 'all 0.2s',
+                      opacity: selectedStatuses.includes('unknown') ? 1 : 0.6,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!selectedStatuses.includes('unknown')) {
+                        e.currentTarget.style.opacity = '0.8';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!selectedStatuses.includes('unknown')) {
+                        e.currentTarget.style.opacity = '0.6';
+                      }
+                    }}
+                  >
+                    <span>Unknown</span>
+                    <span style={{ 
+                      fontWeight: '700',
+                      fontSize: '0.85rem'
+                    }}>
+                      ({statusCounts.unknown} / {totalEndpoints})
+                    </span>
+                  </button>
+                </>
+              );
+            })()}
+          </div>
         </div>
       </div>
 
@@ -266,11 +399,11 @@ function Dashboard() {
           <div className="empty-icon">🔍</div>
           <h2 className="empty-title">No endpoints found</h2>
           <p className="empty-message">
-            {searchTerm || filter !== 'all' || selectedTags.length > 0
+            {searchTerm || selectedStatuses.length < 3 || selectedTags.length > 0
               ? 'Try adjusting your search or filter' 
               : 'Get started by adding your first health check endpoint'}
           </p>
-          {!searchTerm && filter === 'all' && selectedTags.length === 0 && (
+          {!searchTerm && selectedStatuses.length === 3 && selectedTags.length === 0 && (
             <Link to="/endpoints/new" className="btn btn-primary">
               Add Your First Endpoint
             </Link>
