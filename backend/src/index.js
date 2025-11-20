@@ -40,6 +40,7 @@ if (!process.env.ELECTRON_APP) {
 
 // API Routes
 app.use('/api/endpoints', endpointsRouter);
+app.use('/api', endpointsRouter); // Also mount directly for check-results routes
 app.use('/api/settings', settingsRouter);
 
 // Health check endpoint for the API itself

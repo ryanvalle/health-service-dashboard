@@ -422,4 +422,36 @@ router.post('/:id/check-results/:checkId/analyze', [
   }
 });
 
+/**
+ * @swagger
+ * /api/check-results/{id}:
+ *   delete:
+ *     summary: Delete a specific check result
+ *     tags: [Check Results]
+ */
+router.delete('/check-results/:id', [
+  param('id').isInt()
+], validate, async (req, res) => {
+  try {
+    const checkId = parseInt(req.params.id);
+    
+    // Get the check result to verify it exists and get its endpoint_id
+    const checkResult = await CheckResult.findById(checkId);
+    if (!checkResult) {
+      return res.status(404).json({ error: 'Check result not found' });
+    }
+
+    // Delete the check result
+    const success = await CheckResult.delete(checkId);
+    if (!success) {
+      return res.status(404).json({ error: 'Check result not found' });
+    }
+
+    res.json({ message: 'Check result deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting check result:', error);
+    res.status(500).json({ error: 'Failed to delete check result' });
+  }
+});
+
 module.exports = router;
