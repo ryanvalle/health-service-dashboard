@@ -251,8 +251,9 @@ router.post('/', [
   body('url').isURL(),
   body('method').optional().isIn(['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD']),
   body('timeout').optional().isInt({ min: 1000, max: 300000 }),
-  body('check_frequency').optional().isInt({ min: 1 }),
-  body('response_time_threshold').optional().isInt({ min: 0 })
+  body('check_frequency').optional({ nullable: true }).isInt({ min: 1 }),
+  body('response_time_threshold').optional({ nullable: true }).isInt({ min: 0 }),
+  body('schedule_type').optional().isIn(['interval', 'cron'])
 ], validate, async (req, res) => {
   try {
     const endpoint = await Endpoint.create(req.body);
@@ -280,8 +281,9 @@ router.put('/:id', [
   body('url').optional().isURL(),
   body('method').optional().isIn(['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD']),
   body('timeout').optional().isInt({ min: 1000, max: 300000 }),
-  body('check_frequency').optional().isInt({ min: 1 }),
-  body('response_time_threshold').optional().isInt({ min: 0 })
+  body('check_frequency').optional({ nullable: true }).isInt({ min: 1 }),
+  body('response_time_threshold').optional({ nullable: true }).isInt({ min: 0 }),
+  body('schedule_type').optional().isIn(['interval', 'cron'])
 ], validate, async (req, res) => {
   try {
     const endpoint = await Endpoint.update(req.params.id, req.body);

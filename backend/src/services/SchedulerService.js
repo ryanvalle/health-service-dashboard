@@ -37,11 +37,15 @@ class SchedulerService {
       return;
     }
 
-    // Schedule based on cron expression or frequency
-    if (endpoint.cron_schedule) {
+    // Schedule based on schedule_type field
+    const scheduleType = endpoint.schedule_type || 'interval';
+    
+    if (scheduleType === 'cron' && endpoint.cron_schedule) {
       this.scheduleCron(endpoint);
-    } else if (endpoint.check_frequency) {
+    } else if (scheduleType === 'interval' && endpoint.check_frequency) {
       this.scheduleInterval(endpoint);
+    } else {
+      console.warn(`Endpoint ${endpoint.name} has invalid scheduling configuration: schedule_type=${scheduleType}, check_frequency=${endpoint.check_frequency}, cron_schedule=${endpoint.cron_schedule}. Expected non-null check_frequency for 'interval' type or non-null cron_schedule for 'cron' type.`);
     }
   }
 
