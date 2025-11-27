@@ -52,7 +52,9 @@ export const settingsAPI = {
 // Analysis API
 export const analysisAPI = {
   analyzeCheckResult: (endpointId, checkResultId) => 
-    api.post(`/api/endpoints/${endpointId}/check-results/${checkResultId}/analyze`)
+    api.post(`/api/endpoints/${endpointId}/check-results/${checkResultId}/analyze`),
+  compareResponses: (endpointId, checkId1, checkId2) =>
+    api.post(`/api/endpoints/${endpointId}/compare`, { checkId1, checkId2 })
 };
 
 export default api;

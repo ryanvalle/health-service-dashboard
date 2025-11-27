@@ -426,6 +426,103 @@ router.post('/:id/check-results/:checkId/analyze', [
 
 /**
  * @swagger
+ * /api/endpoints/{id}/compare:
+ *   post:
+ *     summary: Compare two check results using OpenAI
+ *     tags: [Endpoints]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - checkId1
+ *               - checkId2
+ *             properties:
+ *               checkId1:
+ *                 type: integer
+ *                 description: ID of the first check result to compare
+ *               checkId2:
+ *                 type: integer
+ *                 description: ID of the second check result to compare
+ */
+router.post('/:id/compare', [
+  param('id').isUUID(),
+  body('checkId1').isInt(),
+  body('checkId2').isInt()
+], validate, async (req, res) => {
+  try {
+    const { checkId1, checkId2 } = req.body;
+
+    // Verify endpoint exists
+    const endpoint = await Endpoint.findById(req.params.id);
+    if (!endpoint) {
+      return res.status(404).json({ error: 'Endpoint not found' });
+    }
+
+    // Get both check results
+    const checkResult1 = await CheckResult.findById(parseInt(checkId1));
+    if (!checkResult1) {
+      return res.status(404).json({ error: 'First check result not found' });
+    }
+
+    const checkResult2 = await CheckResult.findById(parseInt(checkId2));
+    if (!checkResult2) {
+      return res.status(404).json({ error: 'Second check result not found' });
+    }
+
+    // Verify both check results belong to the endpoint
+    if (checkResult1.endpoint_id !== endpoint.id) {
+      return res.status(400).json({ error: 'First check result does not belong to this endpoint' });
+    }
+
+    if (checkResult2.endpoint_id !== endpoint.id) {
+      return res.status(400).json({ error: 'Second check result does not belong to this endpoint' });
+    }
+
+    // Check if OpenAI is configured
+    const isConfigured = await OpenAIService.isConfigured();
+    if (!isConfigured) {
+      return res.status(400).json({ 
+        error: 'OpenAI analysis is not enabled or configured. Please configure OpenAI settings first.' 
+      });
+    }
+
+    // Compare the responses
+    const comparison = await OpenAIService.compareResponses(endpoint, checkResult1, checkResult2);
+
+    res.json({
+      comparison,
+      compared_at: new Date().toISOString(),
+      checkResult1: {
+        id: checkResult1.id,
+        timestamp: checkResult1.timestamp,
+        status_code: checkResult1.status_code,
+        is_healthy: checkResult1.is_healthy
+      },
+      checkResult2: {
+        id: checkResult2.id,
+        timestamp: checkResult2.timestamp,
+        status_code: checkResult2.status_code,
+        is_healthy: checkResult2.is_healthy
+      }
+    });
+  } catch (error) {
+    console.error('Error comparing check results:', error);
+    res.status(500).json({ error: error.message || 'Failed to compare check results' });
+  }
+});
+
+/**
+ * @swagger
  * /api/check-results/{id}:
  *   delete:
  *     summary: Delete a specific check result

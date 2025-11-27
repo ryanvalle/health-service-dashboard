@@ -210,4 +210,163 @@ describe('Endpoints Routes - Analysis', () => {
       expect(response.body.error).toBe('Failed to delete check result');
     });
   });
+
+  describe('POST /api/endpoints/:id/compare', () => {
+    const validUUID = '550e8400-e29b-41d4-a716-446655440000';
+    
+    const mockEndpoint = {
+      id: validUUID,
+      name: 'Test API',
+      url: 'https://api.example.com/health',
+      method: 'GET',
+      expected_status_codes: [200],
+      is_active: true
+    };
+
+    const mockCheckResult1 = {
+      id: 1,
+      endpoint_id: validUUID,
+      is_healthy: true,
+      status_code: 200,
+      response_body: '{"status": "ok", "version": "1.0"}',
+      response_time: 100,
+      timestamp: '2023-01-01T00:00:00Z'
+    };
+
+    const mockCheckResult2 = {
+      id: 2,
+      endpoint_id: validUUID,
+      is_healthy: true,
+      status_code: 200,
+      response_body: '{"status": "ok", "version": "2.0"}',
+      response_time: 150,
+      timestamp: '2023-01-02T00:00:00Z'
+    };
+
+    it('should successfully compare two check results', async () => {
+      Endpoint.findById.mockResolvedValue(mockEndpoint);
+      CheckResult.findById
+        .mockResolvedValueOnce(mockCheckResult1)
+        .mockResolvedValueOnce(mockCheckResult2);
+      OpenAIService.isConfigured.mockResolvedValue(true);
+      OpenAIService.compareResponses.mockResolvedValue('## Comparison\nVersion changed from 1.0 to 2.0');
+
+      const response = await request(app)
+        .post(`/api/endpoints/${validUUID}/compare`)
+        .send({ checkId1: 1, checkId2: 2 })
+        .expect(200);
+
+      expect(response.body.comparison).toContain('Version changed');
+      expect(response.body.checkResult1.id).toBe(1);
+      expect(response.body.checkResult2.id).toBe(2);
+      expect(response.body.compared_at).toBeDefined();
+    });
+
+    it('should return 404 when endpoint not found', async () => {
+      Endpoint.findById.mockResolvedValue(null);
+
+      const response = await request(app)
+        .post(`/api/endpoints/${validUUID}/compare`)
+        .send({ checkId1: 1, checkId2: 2 })
+        .expect(404);
+
+      expect(response.body.error).toBe('Endpoint not found');
+    });
+
+    it('should return 404 when first check result not found', async () => {
+      Endpoint.findById.mockResolvedValue(mockEndpoint);
+      CheckResult.findById.mockResolvedValue(null);
+
+      const response = await request(app)
+        .post(`/api/endpoints/${validUUID}/compare`)
+        .send({ checkId1: 1, checkId2: 2 })
+        .expect(404);
+
+      expect(response.body.error).toBe('First check result not found');
+    });
+
+    it('should return 404 when second check result not found', async () => {
+      Endpoint.findById.mockResolvedValue(mockEndpoint);
+      CheckResult.findById
+        .mockResolvedValueOnce(mockCheckResult1)
+        .mockResolvedValueOnce(null);
+
+      const response = await request(app)
+        .post(`/api/endpoints/${validUUID}/compare`)
+        .send({ checkId1: 1, checkId2: 2 })
+        .expect(404);
+
+      expect(response.body.error).toBe('Second check result not found');
+    });
+
+    it('should return 400 when first check result belongs to different endpoint', async () => {
+      const wrongCheckResult = { ...mockCheckResult1, endpoint_id: 'different-uuid' };
+      Endpoint.findById.mockResolvedValue(mockEndpoint);
+      CheckResult.findById
+        .mockResolvedValueOnce(wrongCheckResult)
+        .mockResolvedValueOnce(mockCheckResult2);
+
+      const response = await request(app)
+        .post(`/api/endpoints/${validUUID}/compare`)
+        .send({ checkId1: 1, checkId2: 2 })
+        .expect(400);
+
+      expect(response.body.error).toBe('First check result does not belong to this endpoint');
+    });
+
+    it('should return 400 when second check result belongs to different endpoint', async () => {
+      const wrongCheckResult = { ...mockCheckResult2, endpoint_id: 'different-uuid' };
+      Endpoint.findById.mockResolvedValue(mockEndpoint);
+      CheckResult.findById
+        .mockResolvedValueOnce(mockCheckResult1)
+        .mockResolvedValueOnce(wrongCheckResult);
+
+      const response = await request(app)
+        .post(`/api/endpoints/${validUUID}/compare`)
+        .send({ checkId1: 1, checkId2: 2 })
+        .expect(400);
+
+      expect(response.body.error).toBe('Second check result does not belong to this endpoint');
+    });
+
+    it('should return 400 when OpenAI is not configured', async () => {
+      Endpoint.findById.mockResolvedValue(mockEndpoint);
+      CheckResult.findById
+        .mockResolvedValueOnce(mockCheckResult1)
+        .mockResolvedValueOnce(mockCheckResult2);
+      OpenAIService.isConfigured.mockResolvedValue(false);
+
+      const response = await request(app)
+        .post(`/api/endpoints/${validUUID}/compare`)
+        .send({ checkId1: 1, checkId2: 2 })
+        .expect(400);
+
+      expect(response.body.error).toContain('OpenAI');
+    });
+
+    it('should handle comparison errors', async () => {
+      Endpoint.findById.mockResolvedValue(mockEndpoint);
+      CheckResult.findById
+        .mockResolvedValueOnce(mockCheckResult1)
+        .mockResolvedValueOnce(mockCheckResult2);
+      OpenAIService.isConfigured.mockResolvedValue(true);
+      OpenAIService.compareResponses.mockRejectedValue(new Error('API rate limit exceeded'));
+
+      const response = await request(app)
+        .post(`/api/endpoints/${validUUID}/compare`)
+        .send({ checkId1: 1, checkId2: 2 })
+        .expect(500);
+
+      expect(response.body.error).toBe('API rate limit exceeded');
+    });
+
+    it('should validate request body', async () => {
+      const response = await request(app)
+        .post(`/api/endpoints/${validUUID}/compare`)
+        .send({ checkId1: 'invalid' })
+        .expect(400);
+
+      expect(response.body.errors).toBeDefined();
+    });
+  });
 });
