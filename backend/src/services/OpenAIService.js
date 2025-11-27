@@ -2,6 +2,9 @@ const axios = require('axios');
 const db = require('../config/database');
 const { DEFAULT_PROMPT, DEFAULT_RESPONSE_LIMIT, COMPARISON_PROMPT } = require('../config/openai-config');
 
+// Maximum response body size for comparison context (8KB per response)
+const MAX_COMPARISON_BODY_SIZE = 8000;
+
 class OpenAIService {
   /**
    * Get OpenAI settings from database
@@ -258,10 +261,9 @@ class OpenAIService {
       lines.push(`Error: ${checkResult1.error_message}`);
     }
     lines.push(`\nResponse Body 1:`);
-    // Limit response body to prevent token overuse (8KB per response)
-    const body1 = (checkResult1.response_body || '').substring(0, 8000);
+    const body1 = (checkResult1.response_body || '').substring(0, MAX_COMPARISON_BODY_SIZE);
     lines.push(body1);
-    if ((checkResult1.response_body || '').length > 8000) {
+    if ((checkResult1.response_body || '').length > MAX_COMPARISON_BODY_SIZE) {
       lines.push('... (truncated)');
     }
 
@@ -274,10 +276,9 @@ class OpenAIService {
       lines.push(`Error: ${checkResult2.error_message}`);
     }
     lines.push(`\nResponse Body 2:`);
-    // Limit response body to prevent token overuse (8KB per response)
-    const body2 = (checkResult2.response_body || '').substring(0, 8000);
+    const body2 = (checkResult2.response_body || '').substring(0, MAX_COMPARISON_BODY_SIZE);
     lines.push(body2);
-    if ((checkResult2.response_body || '').length > 8000) {
+    if ((checkResult2.response_body || '').length > MAX_COMPARISON_BODY_SIZE) {
       lines.push('... (truncated)');
     }
     
