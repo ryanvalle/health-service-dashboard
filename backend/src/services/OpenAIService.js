@@ -1,6 +1,6 @@
 const axios = require('axios');
 const db = require('../config/database');
-const { DEFAULT_PROMPT, DEFAULT_RESPONSE_LIMIT } = require('../config/openai-config');
+const { DEFAULT_PROMPT, DEFAULT_RESPONSE_LIMIT, COMPARISON_PROMPT } = require('../config/openai-config');
 
 class OpenAIService {
   /**
@@ -179,6 +179,109 @@ class OpenAIService {
        WHERE id = ?`,
       [analysis, checkResultId]
     );
+  }
+
+  /**
+   * Compare two response bodies using OpenAI
+   */
+  static async compareResponses(endpoint, checkResult1, checkResult2) {
+    const settings = await this.getSettings();
+    
+    if (!settings.enabled) {
+      throw new Error('OpenAI analysis is not enabled');
+    }
+
+    if (!settings.apiKey) {
+      throw new Error('OpenAI API key is not configured');
+    }
+
+    // Prepare the context for comparison
+    const context = this.prepareComparisonContext(endpoint, checkResult1, checkResult2);
+
+    try {
+      // Call OpenAI API
+      const response = await axios.post(
+        'https://api.openai.com/v1/chat/completions',
+        {
+          model: 'gpt-3.5-turbo',
+          messages: [
+            { role: 'system', content: COMPARISON_PROMPT },
+            { role: 'user', content: context }
+          ],
+          max_tokens: settings.responseLimit,
+          temperature: 0.7
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${settings.apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 60000 // Longer timeout for potentially large comparisons
+        }
+      );
+
+      return response.data.choices[0].message.content;
+    } catch (error) {
+      console.error('OpenAI API error:', error.response?.data || error.message);
+      
+      if (error.response?.status === 401) {
+        throw new Error('Invalid OpenAI API key');
+      } else if (error.response?.status === 429) {
+        throw new Error('OpenAI API rate limit exceeded');
+      } else if (error.code === 'ECONNABORTED') {
+        throw new Error('OpenAI API request timeout');
+      } else {
+        throw new Error(`OpenAI API error: ${error.message}`);
+      }
+    }
+  }
+
+  /**
+   * Prepare comparison context from two check results
+   */
+  static prepareComparisonContext(endpoint, checkResult1, checkResult2) {
+    const lines = [];
+    
+    lines.push('=== Response Comparison Request ===\n');
+    
+    // Endpoint information
+    lines.push(`Endpoint: ${endpoint.name}`);
+    lines.push(`URL: ${endpoint.url}`);
+    lines.push(`HTTP Method: ${endpoint.method}`);
+    
+    // Response 1 details
+    lines.push(`\n=== Response 1 (${checkResult1.timestamp}) ===`);
+    lines.push(`Status Code: ${checkResult1.status_code || 'N/A'}`);
+    lines.push(`Response Time: ${checkResult1.response_time || 'N/A'}ms`);
+    lines.push(`Health Status: ${checkResult1.is_healthy ? 'Healthy' : 'Unhealthy'}`);
+    if (checkResult1.error_message) {
+      lines.push(`Error: ${checkResult1.error_message}`);
+    }
+    lines.push(`\nResponse Body 1:`);
+    // Limit response body to prevent token overuse (8KB per response)
+    const body1 = (checkResult1.response_body || '').substring(0, 8000);
+    lines.push(body1);
+    if ((checkResult1.response_body || '').length > 8000) {
+      lines.push('... (truncated)');
+    }
+
+    // Response 2 details
+    lines.push(`\n=== Response 2 (${checkResult2.timestamp}) ===`);
+    lines.push(`Status Code: ${checkResult2.status_code || 'N/A'}`);
+    lines.push(`Response Time: ${checkResult2.response_time || 'N/A'}ms`);
+    lines.push(`Health Status: ${checkResult2.is_healthy ? 'Healthy' : 'Unhealthy'}`);
+    if (checkResult2.error_message) {
+      lines.push(`Error: ${checkResult2.error_message}`);
+    }
+    lines.push(`\nResponse Body 2:`);
+    // Limit response body to prevent token overuse (8KB per response)
+    const body2 = (checkResult2.response_body || '').substring(0, 8000);
+    lines.push(body2);
+    if ((checkResult2.response_body || '').length > 8000) {
+      lines.push('... (truncated)');
+    }
+    
+    return lines.join('\n');
   }
 }
 

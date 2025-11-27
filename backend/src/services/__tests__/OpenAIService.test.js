@@ -351,4 +351,199 @@ describe('OpenAIService', () => {
       );
     });
   });
+
+  describe('compareResponses', () => {
+    const mockEndpoint = {
+      id: 'test-uuid',
+      name: 'Test API',
+      url: 'https://api.example.com/health',
+      method: 'GET'
+    };
+
+    const mockCheckResult1 = {
+      id: 1,
+      endpoint_id: 'test-uuid',
+      is_healthy: true,
+      status_code: 200,
+      response_body: '{"status": "ok", "version": "1.0"}',
+      response_time: 100,
+      timestamp: '2023-01-01T00:00:00Z'
+    };
+
+    const mockCheckResult2 = {
+      id: 2,
+      endpoint_id: 'test-uuid',
+      is_healthy: true,
+      status_code: 200,
+      response_body: '{"status": "ok", "version": "2.0"}',
+      response_time: 150,
+      timestamp: '2023-01-02T00:00:00Z'
+    };
+
+    it('should successfully compare two responses', async () => {
+      const mockSettings = [
+        { key: 'openai_enabled', value: 'true' },
+        { key: 'openai_api_key', value: 'sk-test123' },
+        { key: 'openai_response_limit', value: '1000' },
+        { key: 'openai_custom_prompt', value: '' }
+      ];
+      
+      db.all.mockResolvedValue(mockSettings);
+
+      const mockOpenAIResponse = {
+        data: {
+          choices: [
+            {
+              message: {
+                content: '## Content Type\nJSON\n\n## Summary\nThe version changed from 1.0 to 2.0'
+              }
+            }
+          ]
+        }
+      };
+
+      axios.post.mockResolvedValue(mockOpenAIResponse);
+
+      const comparison = await OpenAIService.compareResponses(mockEndpoint, mockCheckResult1, mockCheckResult2);
+
+      expect(comparison).toContain('version changed');
+      expect(axios.post).toHaveBeenCalledWith(
+        'https://api.openai.com/v1/chat/completions',
+        expect.objectContaining({
+          model: 'gpt-3.5-turbo',
+          max_tokens: 1000
+        }),
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'Authorization': 'Bearer sk-test123'
+          }),
+          timeout: 60000
+        })
+      );
+    });
+
+    it('should throw error when OpenAI is not enabled', async () => {
+      const mockSettings = [
+        { key: 'openai_enabled', value: 'false' }
+      ];
+      
+      db.all.mockResolvedValue(mockSettings);
+
+      await expect(
+        OpenAIService.compareResponses(mockEndpoint, mockCheckResult1, mockCheckResult2)
+      ).rejects.toThrow('OpenAI analysis is not enabled');
+    });
+
+    it('should throw error when API key is missing', async () => {
+      const mockSettings = [
+        { key: 'openai_enabled', value: 'true' },
+        { key: 'openai_api_key', value: '' }
+      ];
+      
+      db.all.mockResolvedValue(mockSettings);
+
+      await expect(
+        OpenAIService.compareResponses(mockEndpoint, mockCheckResult1, mockCheckResult2)
+      ).rejects.toThrow('OpenAI API key is not configured');
+    });
+  });
+
+  describe('prepareComparisonContext', () => {
+    it('should prepare comprehensive comparison context', () => {
+      const endpoint = {
+        name: 'Test API',
+        url: 'https://api.example.com/data',
+        method: 'GET'
+      };
+
+      const checkResult1 = {
+        timestamp: '2023-01-01T12:00:00Z',
+        status_code: 200,
+        response_time: 100,
+        is_healthy: true,
+        response_body: '{"data": "value1"}'
+      };
+
+      const checkResult2 = {
+        timestamp: '2023-01-02T12:00:00Z',
+        status_code: 200,
+        response_time: 150,
+        is_healthy: true,
+        response_body: '{"data": "value2"}'
+      };
+
+      const context = OpenAIService.prepareComparisonContext(endpoint, checkResult1, checkResult2);
+
+      expect(context).toContain('Test API');
+      expect(context).toContain('https://api.example.com/data');
+      expect(context).toContain('Response 1');
+      expect(context).toContain('Response 2');
+      expect(context).toContain('value1');
+      expect(context).toContain('value2');
+      expect(context).toContain('200');
+      expect(context).toContain('100ms');
+      expect(context).toContain('150ms');
+    });
+
+    it('should truncate long response bodies', () => {
+      const endpoint = {
+        name: 'Test',
+        url: 'https://api.example.com',
+        method: 'GET'
+      };
+
+      const longBody = 'x'.repeat(10000);
+      const checkResult1 = {
+        timestamp: '2023-01-01T12:00:00Z',
+        status_code: 200,
+        response_time: 100,
+        is_healthy: true,
+        response_body: longBody
+      };
+
+      const checkResult2 = {
+        timestamp: '2023-01-02T12:00:00Z',
+        status_code: 200,
+        response_time: 100,
+        is_healthy: true,
+        response_body: '{"short": "body"}'
+      };
+
+      const context = OpenAIService.prepareComparisonContext(endpoint, checkResult1, checkResult2);
+
+      expect(context).toContain('... (truncated)');
+      expect(context.length).toBeLessThan(longBody.length + 1000);
+    });
+
+    it('should handle null response bodies', () => {
+      const endpoint = {
+        name: 'Test',
+        url: 'https://api.example.com',
+        method: 'GET'
+      };
+
+      const checkResult1 = {
+        timestamp: '2023-01-01T12:00:00Z',
+        status_code: 500,
+        response_time: 100,
+        is_healthy: false,
+        error_message: 'Server error',
+        response_body: null
+      };
+
+      const checkResult2 = {
+        timestamp: '2023-01-02T12:00:00Z',
+        status_code: 200,
+        response_time: 100,
+        is_healthy: true,
+        response_body: undefined
+      };
+
+      const context = OpenAIService.prepareComparisonContext(endpoint, checkResult1, checkResult2);
+
+      expect(context).toContain('Unhealthy');
+      expect(context).toContain('Healthy');
+      expect(context).toContain('Server error');
+    });
+  });
 });

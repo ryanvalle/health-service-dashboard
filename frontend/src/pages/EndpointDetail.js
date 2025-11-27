@@ -28,6 +28,12 @@ function EndpointDetail() {
   const [healthFilter, setHealthFilter] = useState('all'); // 'all', 'healthy', 'unhealthy'
   const [expandedResponseId, setExpandedResponseId] = useState(null);
   const { effectiveTimezone } = useTimezone();
+  
+  // Comparison state
+  const [compareMode, setCompareMode] = useState(false);
+  const [selectedForCompare, setSelectedForCompare] = useState([]);
+  const [comparing, setComparing] = useState(false);
+  const [comparisonResult, setComparisonResult] = useState(null);
 
   useEffect(() => {
     fetchEndpoint();
@@ -129,6 +135,41 @@ function EndpointDetail() {
         alert('Failed to delete endpoint');
       }
     }
+  };
+
+  // Comparison handlers
+  const toggleCompareMode = () => {
+    setCompareMode(!compareMode);
+    setSelectedForCompare([]);
+    setComparisonResult(null);
+  };
+
+  const handleSelectForCompare = (checkId) => {
+    if (selectedForCompare.includes(checkId)) {
+      setSelectedForCompare(selectedForCompare.filter(id => id !== checkId));
+    } else if (selectedForCompare.length < 2) {
+      setSelectedForCompare([...selectedForCompare, checkId]);
+    }
+  };
+
+  const handleCompare = async () => {
+    if (selectedForCompare.length !== 2) return;
+    
+    setComparing(true);
+    try {
+      const response = await analysisAPI.compareResponses(id, selectedForCompare[0], selectedForCompare[1]);
+      setComparisonResult(response.data);
+    } catch (err) {
+      console.error('Failed to compare responses:', err);
+      alert(err.response?.data?.error || 'Failed to compare responses. Make sure OpenAI is configured in Settings.');
+    } finally {
+      setComparing(false);
+    }
+  };
+
+  const clearComparison = () => {
+    setSelectedForCompare([]);
+    setComparisonResult(null);
   };
 
   if (loading) {
@@ -355,10 +396,100 @@ function EndpointDetail() {
         </div>
       )}
 
+      {/* Comparison Result Modal */}
+      {comparisonResult && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '8px',
+            width: '90%',
+            maxWidth: '900px',
+            maxHeight: '90vh',
+            overflow: 'auto',
+            padding: '1.5rem'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h2 style={{ margin: 0, color: '#2c3e50' }}>🔍 Response Comparison Analysis</h2>
+              <button
+                onClick={clearComparison}
+                className="btn btn-secondary"
+                style={{ padding: '0.5rem 1rem' }}
+              >
+                ✕ Close
+              </button>
+            </div>
+            <div style={{ 
+              display: 'flex', 
+              gap: '1rem', 
+              marginBottom: '1rem',
+              padding: '1rem',
+              backgroundColor: '#f8f9fa',
+              borderRadius: '4px'
+            }}>
+              <div style={{ flex: 1 }}>
+                <strong>Response 1:</strong>
+                <div style={{ fontSize: '0.9rem', color: '#666' }}>
+                  {formatTimestamp(comparisonResult.checkResult1.timestamp, { timezone: effectiveTimezone, format: 'full' })}
+                </div>
+                <span className={`status-badge status-${comparisonResult.checkResult1.is_healthy ? 'healthy' : 'unhealthy'}`} style={{ marginTop: '0.25rem', display: 'inline-block' }}>
+                  {comparisonResult.checkResult1.status_code || 'N/A'}
+                </span>
+              </div>
+              <div style={{ flex: 1 }}>
+                <strong>Response 2:</strong>
+                <div style={{ fontSize: '0.9rem', color: '#666' }}>
+                  {formatTimestamp(comparisonResult.checkResult2.timestamp, { timezone: effectiveTimezone, format: 'full' })}
+                </div>
+                <span className={`status-badge status-${comparisonResult.checkResult2.is_healthy ? 'healthy' : 'unhealthy'}`} style={{ marginTop: '0.25rem', display: 'inline-block' }}>
+                  {comparisonResult.checkResult2.status_code || 'N/A'}
+                </span>
+              </div>
+            </div>
+            <div 
+              style={{ 
+                background: '#f8f9fa', 
+                padding: '1rem', 
+                borderRadius: '4px',
+                fontSize: '0.9rem',
+                color: '#495057',
+                lineHeight: '1.6'
+              }}
+              dangerouslySetInnerHTML={{ 
+                __html: DOMPurify.sanitize(marked(comparisonResult.comparison)) 
+              }}
+            />
+            <div style={{ fontSize: '0.8rem', color: '#6c757d', marginTop: '1rem' }}>
+              Compared at {formatTimestamp(comparisonResult.compared_at, { timezone: effectiveTimezone, format: 'full' })}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="history-section">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
           <h2 className="history-title" style={{ margin: 0 }}>Check History</h2>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            {/* Compare Mode Toggle */}
+            {openAIEnabled && history.length >= 2 && (
+              <button
+                className={`btn ${compareMode ? 'btn-warning' : 'btn-secondary'}`}
+                onClick={toggleCompareMode}
+                style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
+              >
+                {compareMode ? '✕ Exit Compare' : '🔍 Compare Responses'}
+              </button>
+            )}
             <button
               className={`btn ${healthFilter === 'all' ? 'btn-primary' : 'btn-secondary'}`}
               onClick={() => setHealthFilter('all')}
@@ -382,6 +513,40 @@ function EndpointDetail() {
             </button>
           </div>
         </div>
+
+        {/* Compare Mode Instructions */}
+        {compareMode && (
+          <div style={{
+            backgroundColor: '#fff3cd',
+            border: '1px solid #ffc107',
+            borderRadius: '4px',
+            padding: '1rem',
+            marginBottom: '1rem',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}>
+            <div>
+              <strong>Compare Mode:</strong> Select 2 responses to compare their differences using AI analysis.
+              {selectedForCompare.length > 0 && (
+                <span style={{ marginLeft: '1rem', color: '#856404' }}>
+                  Selected: {selectedForCompare.length}/2
+                </span>
+              )}
+            </div>
+            {selectedForCompare.length === 2 && (
+              <button
+                className="btn btn-success"
+                onClick={handleCompare}
+                disabled={comparing}
+                style={{ padding: '0.5rem 1rem' }}
+              >
+                {comparing ? '🔄 Comparing...' : '🔍 Compare Selected'}
+              </button>
+            )}
+          </div>
+        )}
+
         <div className="history-list">
           {filteredHistory.length === 0 ? (
             <div className="empty-state">
@@ -397,8 +562,33 @@ function EndpointDetail() {
               <div 
                 key={check.id} 
                 className={`history-item ${check.is_healthy ? 'healthy' : 'unhealthy'}`}
+                style={{
+                  border: selectedForCompare.includes(check.id) ? '2px solid #ffc107' : undefined,
+                  backgroundColor: selectedForCompare.includes(check.id) ? '#fffef0' : undefined
+                }}
               >
                 <div className="history-meta">
+                  {/* Compare checkbox */}
+                  {compareMode && (
+                    <label style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      marginRight: '1rem',
+                      cursor: 'pointer'
+                    }}>
+                      <input
+                        type="checkbox"
+                        checked={selectedForCompare.includes(check.id)}
+                        onChange={() => handleSelectForCompare(check.id)}
+                        disabled={!selectedForCompare.includes(check.id) && selectedForCompare.length >= 2}
+                        style={{ marginRight: '0.5rem', width: '18px', height: '18px' }}
+                      />
+                      <span style={{ fontSize: '0.85rem', color: '#666' }}>
+                        {selectedForCompare.indexOf(check.id) === 0 ? '1st' : 
+                         selectedForCompare.indexOf(check.id) === 1 ? '2nd' : 'Select'}
+                      </span>
+                    </label>
+                  )}
                   <span className="history-timestamp">
                     {formatTimestamp(check.timestamp, { 
                       timezone: effectiveTimezone, 

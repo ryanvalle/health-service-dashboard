@@ -32,11 +32,12 @@ class HealthCheckService {
       result.response_time = endTime - startTime;
       result.status_code = response.status;
 
-      // Store response body (limit size to prevent database bloat)
+      // Store full response body for comparison feature
+      // Limit increased to 1MB to allow meaningful comparisons
       const responseBody = typeof response.data === 'string' 
         ? response.data 
         : JSON.stringify(response.data);
-      result.response_body = responseBody.substring(0, 10000); // Limit to 10KB
+      result.response_body = responseBody.substring(0, 1000000); // Limit to 1MB
 
       // Validate status code
       const statusValid = endpoint.expected_status_codes.includes(response.status);
