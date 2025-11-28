@@ -6,6 +6,7 @@ import { formatTimestamp, formatRelativeTime, calculateNextCheckTime, formatChar
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
+import { exportEndpointDetailToPDF } from '../utils/pdfExport';
 
 // Configure marked for security
 marked.setOptions({
@@ -27,6 +28,7 @@ function EndpointDetail() {
   const [openAIEnabled, setOpenAIEnabled] = useState(false);
   const [healthFilter, setHealthFilter] = useState('all'); // 'all', 'healthy', 'unhealthy'
   const [expandedResponseId, setExpandedResponseId] = useState(null);
+  const [exportingPDF, setExportingPDF] = useState(false);
   const { effectiveTimezone } = useTimezone();
 
   useEffect(() => {
@@ -131,6 +133,19 @@ function EndpointDetail() {
     }
   };
 
+  const handleExportPDF = async () => {
+    setExportingPDF(true);
+    try {
+      const endpointName = endpoint?.name?.replace(/[^a-z0-9]/gi, '-').toLowerCase() || 'endpoint';
+      await exportEndpointDetailToPDF(`${endpointName}-detail.pdf`);
+    } catch (error) {
+      console.error('Failed to export PDF:', error);
+      alert('Failed to export PDF. Please try again.');
+    } finally {
+      setExportingPDF(false);
+    }
+  };
+
   if (loading) {
     return <div className="loading">Loading endpoint details...</div>;
   }
@@ -210,17 +225,25 @@ function EndpointDetail() {
           </span>
         </div>
         <div className="detail-actions">
+          <button
+            onClick={handleExportPDF}
+            disabled={exportingPDF}
+            className="btn btn-primary pdf-hide"
+            style={{ marginRight: '0.5rem' }}
+          >
+            {exportingPDF ? '📄 Generating PDF...' : '📄 Export to PDF'}
+          </button>
           <button 
-            className="btn btn-success" 
+            className="btn btn-success pdf-hide" 
             onClick={handleCheckNow}
             disabled={checking}
           >
             {checking ? 'Checking...' : '🔄 Check Now'}
           </button>
-          <Link to={`/endpoints/${id}/edit`} className="btn btn-primary">
+          <Link to={`/endpoints/${id}/edit`} className="btn btn-primary pdf-hide">
             ✏️ Edit
           </Link>
-          <button className="btn btn-danger" onClick={handleDelete}>
+          <button className="btn btn-danger pdf-hide" onClick={handleDelete}>
             🗑️ Delete
           </button>
         </div>
@@ -358,7 +381,7 @@ function EndpointDetail() {
       <div className="history-section">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
           <h2 className="history-title" style={{ margin: 0 }}>Check History</h2>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', gap: '0.5rem' }} className="pdf-hide">
             <button
               className={`btn ${healthFilter === 'all' ? 'btn-primary' : 'btn-secondary'}`}
               onClick={() => setHealthFilter('all')}
@@ -429,7 +452,7 @@ function EndpointDetail() {
                       {check.response_body.length > 500 && (
                         <button
                           onClick={() => setExpandedResponseId(expandedResponseId === check.id ? null : check.id)}
-                          className="btn btn-secondary"
+                          className="btn btn-secondary pdf-hide"
                           style={{ padding: '0.25rem 0.75rem', fontSize: '0.85rem' }}
                         >
                           {expandedResponseId === check.id ? 'Show Less' : 'Show Full Response'}
@@ -446,7 +469,7 @@ function EndpointDetail() {
                 )}
                 
                 {/* Action buttons */}
-                <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
+                <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end' }} className="pdf-hide">
                   <button
                     onClick={() => handleDeleteCheckResult(check.id)}
                     className="btn btn-danger"
@@ -466,7 +489,7 @@ function EndpointDetail() {
                           <button
                             onClick={() => handleAnalyze(check.id)}
                             disabled={analyzingCheckId === check.id}
-                            className="btn btn-primary"
+                            className="btn btn-primary pdf-hide"
                             style={{ 
                               padding: '0.35rem 0.75rem',
                               fontSize: '0.85rem'
@@ -498,7 +521,7 @@ function EndpointDetail() {
                       <button
                         onClick={() => handleAnalyze(check.id)}
                         disabled={analyzingCheckId === check.id}
-                        className="btn btn-primary"
+                        className="btn btn-primary pdf-hide"
                         style={{ 
                           padding: '0.5rem 1rem',
                           fontSize: '0.9rem',
